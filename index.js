@@ -2220,331 +2220,347 @@
 
   // 更新人物位置函数
   function updatePersonLocations(showUpdateToast = true) {
-    // 创建人物列表和位置映射
-    const personLocations = [];
-    const existingPositions = [];
+    // 使用防抖，避免频繁更新
+    if (window.locationUpdateTimeout) {
+      clearTimeout(window.locationUpdateTimeout);
+    }
 
-    // 清除控制台以便查看更新
-    console.clear();
-    console.log('开始更新人物位置数据...');
+    window.locationUpdateTimeout = setTimeout(() => {
+      // 创建人物列表和位置映射
+      const personLocations = [];
+      const existingPositions = [];
 
-    // 强制刷新DOM，确保所有元素都在页面上可见
-    setTimeout(() => {
-      // 查找页面上所有的人物和位置信息 - 使用多种选择器
-      console.log('使用扩展选择器查找位置元素...');
+      // 清除控制台以便查看更新
+      console.clear();
+      console.log('开始更新人物位置数据...');
 
-      // 使用多种选择器查找位置元素
-      const locationSelectors = [
-        '[class*="person-location-"]',
-        '[class*="location-person-"]',
-        '[class*="personlocation-"]',
-        '[class^="person-"][class*="-location"]',
-        '[data-location]'
-      ];
+      // 使用文档片段来优化DOM操作
+      const fragment = document.createDocumentFragment();
 
-      let locationElements = $();
+      // 强制刷新DOM，确保所有元素都在页面上可见
+      setTimeout(() => {
+        try {
+          // 查找页面上所有的人物和位置信息 - 使用多种选择器
+          console.log('使用扩展选择器查找位置元素...');
 
-      // 使用多种选择器尝试查找位置数据
-      locationSelectors.forEach(selector => {
-        const found = $(selector);
-        if (found.length > 0) {
-          console.log(`使用选择器 ${selector} 找到 ${found.length} 个元素`);
-          locationElements = locationElements.add(found);
-        }
-      });
+          // 使用多种选择器查找位置元素
+          const locationSelectors = [
+            '[class*="person-location-"]',
+            '[class*="location-person-"]',
+            '[class*="personlocation-"]',
+            '[class^="person-"][class*="-location"]',
+            '[data-location]'
+          ];
 
-      console.log(`总共找到 ${locationElements.length} 个位置元素`);
+          let locationElements = $();
 
-      // 尝试从SillyTavern聊天记录中获取位置和头像数据
-      try {
-        console.log('尝试从SillyTavern聊天记录中获取位置和头像数据...');
+          // 使用多种选择器尝试查找位置数据
+          locationSelectors.forEach(selector => {
+            const found = $(selector);
+            if (found.length > 0) {
+              console.log(`使用选择器 ${selector} 找到 ${found.length} 个元素`);
+              locationElements = locationElements.add(found);
+            }
+          });
 
-        // 检查SillyTavern是否可用
-        if (typeof SillyTavern !== 'undefined' && typeof SillyTavern.getContext === 'function') {
-          const context = SillyTavern.getContext();
-          console.log('成功获取SillyTavern上下文');
+          console.log(`总共找到 ${locationElements.length} 个位置元素`);
 
-          // 检查聊天记录是否存在
-          if (context && context.chat && Array.isArray(context.chat)) {
-            console.log(`找到聊天记录，共${context.chat.length}条消息`);
+          // 尝试从SillyTavern聊天记录中获取位置和头像数据
+          try {
+            console.log('尝试从SillyTavern聊天记录中获取位置和头像数据...');
 
-            // 创建一个临时容器来解析HTML内容
-            const $tempContainer = $('<div></div>');
+            // 检查SillyTavern是否可用
+            if (typeof SillyTavern !== 'undefined' && typeof SillyTavern.getContext === 'function') {
+              const context = SillyTavern.getContext();
+              console.log('成功获取SillyTavern上下文');
 
-            // 遍历聊天记录，从新到旧
-            for (let i = context.chat.length - 1; i >= 0; i--) {
-              const message = context.chat[i];
+              // 检查聊天记录是否存在
+              if (context && context.chat && Array.isArray(context.chat)) {
+                console.log('找到聊天记录，仅检查最新消息');
 
-              // 检查消息是否存在内容
-              if (message && message.mes) {
-                // 将消息内容放入临时容器
-                $tempContainer.html(message.mes);
+                // 创建一个临时容器来解析HTML内容
+                const $tempContainer = $('<div></div>');
 
-                // 在临时容器中查找位置数据
-                const chatLocationElements = $tempContainer.find('[class*="person-location-"]');
-                if (chatLocationElements.length > 0) {
-                  console.log(`在消息#${i}中找到${chatLocationElements.length}个位置数据`);
-                  locationElements = locationElements.add(chatLocationElements.clone());
+                // 只检查最新的一条消息
+                const lastMessage = context.chat[context.chat.length - 1];
+                if (lastMessage && lastMessage.mes) {
+                  // 将消息内容放入临时容器
+                  $tempContainer.html(lastMessage.mes);
+
+                  // 在临时容器中查找位置数据
+                  const chatLocationElements = $tempContainer.find('[class*="person-location-"]');
+                  if (chatLocationElements.length > 0) {
+                    console.log(`在最新消息中找到${chatLocationElements.length}个位置数据`);
+                    locationElements = locationElements.add(chatLocationElements.clone());
+                  }
+
+                  // 查找其他格式的位置数据
+                  locationSelectors.forEach(selector => {
+                    if (selector !== '[class*="person-location-"]') {
+                      const found = $tempContainer.find(selector);
+                      if (found.length > 0) {
+                        console.log(`在最新消息中使用选择器${selector}找到${found.length}个元素`);
+                        locationElements = locationElements.add(found.clone());
+                      }
+                    }
+                  });
                 }
 
-                // 查找其他格式的位置数据
-                locationSelectors.forEach(selector => {
-                  if (selector !== '[class*="person-location-"]') {
-                    const found = $tempContainer.find(selector);
-                    if (found.length > 0) {
-                      console.log(`在消息#${i}中使用选择器${selector}找到${found.length}个元素`);
-                      locationElements = locationElements.add(found.clone());
-                    }
-                  }
-                });
+                console.log(`从最新消息中找到的位置元素总数: ${locationElements.length}`);
+              } else {
+                console.log('SillyTavern聊天记录不可用或为空');
+              }
+            } else {
+              console.log('SillyTavern或getContext函数不可用');
+            }
+          } catch (error) {
+            console.error('从SillyTavern聊天记录获取数据时出错:', error);
+          }
+
+          // 输出所有找到的位置元素以便调试
+          locationElements.each(function (index) {
+            console.log(`位置元素 ${index + 1}:`, {
+              tag: this.tagName,
+              classes: $(this).attr('class') || '',
+              content: $(this).text().trim(),
+              dataAttrs: JSON.stringify(this.dataset)
+            });
+          });
+
+          // 遍历所有带有位置信息的元素
+          locationElements.each(function () {
+            const classes = $(this).attr('class') || '';
+            let name = '';
+            let location = '';
+            let avatar = 'https://pub-07f3e1b810bb45079240dae84aaadd3e.r2.dev/profile/defult.jpg'; // 默认头像
+
+            // 从多种格式中提取名称
+            const classNames = classes.split(' ');
+            for (let cls of classNames) {
+              if (cls.startsWith('person-location-')) {
+                name = cls.replace('person-location-', '');
+                break;
+              } else if (cls.startsWith('location-person-')) {
+                name = cls.replace('location-person-', '');
+                break;
+              } else if (cls.startsWith('personlocation-')) {
+                name = cls.replace('personlocation-', '');
+                break;
               }
             }
 
-            console.log(`从聊天记录中找到的位置元素总数: ${locationElements.length}`);
-          } else {
-            console.log('SillyTavern聊天记录不可用或为空');
-          }
-        } else {
-          console.log('SillyTavern或getContext函数不可用');
-        }
-      } catch (error) {
-        console.error('从SillyTavern聊天记录获取数据时出错:', error);
-      }
-
-      // 输出所有找到的位置元素以便调试
-      locationElements.each(function (index) {
-        console.log(`位置元素 ${index + 1}:`, {
-          tag: this.tagName,
-          classes: $(this).attr('class') || '',
-          content: $(this).text().trim(),
-          dataAttrs: JSON.stringify(this.dataset)
-        });
-      });
-
-      // 遍历所有带有位置信息的元素
-      locationElements.each(function () {
-        const classes = $(this).attr('class') || '';
-        let name = '';
-        let location = '';
-        let avatar = 'https://pub-07f3e1b810bb45079240dae84aaadd3e.r2.dev/profile/defult.jpg'; // 默认头像
-
-        // 从多种格式中提取名称
-        const classNames = classes.split(' ');
-        for (let cls of classNames) {
-          if (cls.startsWith('person-location-')) {
-            name = cls.replace('person-location-', '');
-            break;
-          } else if (cls.startsWith('location-person-')) {
-            name = cls.replace('location-person-', '');
-            break;
-          } else if (cls.startsWith('personlocation-')) {
-            name = cls.replace('personlocation-', '');
-            break;
-          }
-        }
-
-        // 从data属性中提取名称
-        if (!name && $(this).attr('data-person')) {
-          name = $(this).attr('data-person');
-        }
-
-        // 如果找到了名称，提取位置
-        if (name) {
-          location = $(this).text().trim() || $(this).attr('data-location') || '未知位置';
-          console.log(`找到人物: ${name}, 位置: ${location}`);
-
-          // 为这个名称查找头像 - 既在DOM中查找，也在聊天记录中查找
-          const escapedName = CSS.escape(name);
-          const avatarSelectors = [
-            `.person-avatar-${escapedName}`,
-            `.avatar-person-${escapedName}`,
-            `.personavatar-${escapedName}`,
-            `[data-avatar][data-person="${name}"]`
-          ];
-
-          let avatarElement = null;
-
-          // 尝试使用多种选择器查找头像
-          for (const selector of avatarSelectors) {
-            const found = $(selector);
-            if (found.length > 0) {
-              console.log(`使用选择器 ${selector} 找到头像元素`);
-              avatarElement = found.first();
-              break;
+            // 从data属性中提取名称
+            if (!name && $(this).attr('data-person')) {
+              name = $(this).attr('data-person');
             }
-          }
 
-          // 如果在DOM中没找到，尝试从聊天记录中查找头像
-          if (!avatarElement && typeof SillyTavern !== 'undefined' && typeof SillyTavern.getContext === 'function') {
-            try {
-              const context = SillyTavern.getContext();
-              if (context && context.chat && Array.isArray(context.chat)) {
-                const $tempContainer = $('<div></div>');
+            // 如果找到了名称，提取位置
+            if (name) {
+              location = $(this).text().trim() || $(this).attr('data-location') || '未知位置';
+              console.log(`找到人物: ${name}, 位置: ${location}`);
 
-                // 从新到旧遍历消息
-                for (let i = context.chat.length - 1; i >= 0 && !avatarElement; i--) {
-                  const message = context.chat[i];
-                  if (message && message.mes) {
-                    $tempContainer.html(message.mes);
+              // 为这个名称查找头像 - 既在DOM中查找，也在聊天记录中查找
+              const escapedName = CSS.escape(name);
+              const avatarSelectors = [
+                `.person-avatar-${escapedName}`,
+                `.avatar-person-${escapedName}`,
+                `.personavatar-${escapedName}`,
+                `[data-avatar][data-person="${name}"]`
+              ];
 
-                    // 尝试所有头像选择器
-                    for (const selector of avatarSelectors) {
-                      const found = $tempContainer.find(selector);
-                      if (found.length > 0) {
-                        console.log(`在消息#${i}中使用选择器${selector}找到头像元素`);
-                        avatarElement = found.first();
-                        break;
+              let avatarElement = null;
+
+              // 尝试使用多种选择器查找头像
+              for (const selector of avatarSelectors) {
+                const found = $(selector);
+                if (found.length > 0) {
+                  console.log(`使用选择器 ${selector} 找到头像元素`);
+                  avatarElement = found.first();
+                  break;
+                }
+              }
+
+              // 如果在DOM中没找到，尝试从聊天记录中查找头像
+              if (!avatarElement && typeof SillyTavern !== 'undefined' && typeof SillyTavern.getContext === 'function') {
+                try {
+                  const context = SillyTavern.getContext();
+                  if (context && context.chat && Array.isArray(context.chat)) {
+                    const $tempContainer = $('<div></div>');
+
+                    // 只检查最新消息
+                    const lastMessage = context.chat[context.chat.length - 1];
+                    if (lastMessage && lastMessage.mes) {
+                      $tempContainer.html(lastMessage.mes);
+
+                      // 尝试所有头像选择器
+                      for (const selector of avatarSelectors) {
+                        const found = $tempContainer.find(selector);
+                        if (found.length > 0) {
+                          console.log(`在最新消息中使用选择器${selector}找到头像元素`);
+                          avatarElement = found.first();
+                          break;
+                        }
                       }
                     }
                   }
+                } catch (error) {
+                  console.error('从聊天记录查找头像时出错:', error);
                 }
               }
-            } catch (error) {
-              console.error('从聊天记录查找头像时出错:', error);
-            }
-          }
 
-          if (avatarElement) {
-            // 如果元素有src属性，使用src作为头像URL
-            const avatarSrc = avatarElement.attr('src');
-            if (avatarSrc) {
-              avatar = avatarSrc;
-              console.log(`从src属性获取头像: ${avatar}`);
-            } else {
-              // 否则尝试data-avatar属性
-              const dataAvatar = avatarElement.attr('data-avatar');
-              if (dataAvatar) {
-                avatar = dataAvatar;
-                console.log(`从data-avatar属性获取头像: ${avatar}`);
+              if (avatarElement) {
+                // 如果元素有src属性，使用src作为头像URL
+                const avatarSrc = avatarElement.attr('src');
+                if (avatarSrc) {
+                  avatar = avatarSrc;
+                  console.log(`从src属性获取头像: ${avatar}`);
+                } else {
+                  // 否则尝试data-avatar属性
+                  const dataAvatar = avatarElement.attr('data-avatar');
+                  if (dataAvatar) {
+                    avatar = dataAvatar;
+                    console.log(`从data-avatar属性获取头像: ${avatar}`);
+                  } else {
+                    // 最后使用元素的文本内容
+                    const avatarUrl = avatarElement.text().trim();
+                    if (avatarUrl) {
+                      avatar = avatarUrl;
+                      console.log(`从文本内容获取头像: ${avatar}`);
+                    }
+                  }
+                }
+                console.log(`为${name}找到自定义头像: ${avatar}`);
               } else {
-                // 最后使用元素的文本内容
-                const avatarUrl = avatarElement.text().trim();
-                if (avatarUrl) {
-                  avatar = avatarUrl;
-                  console.log(`从文本内容获取头像: ${avatar}`);
-                }
+                console.log(`没有找到${name}的头像元素，使用默认头像`);
+              }
+
+              // 只有当名称有效时才添加到位置列表
+              personLocations.push({
+                name: name,
+                location: location,
+                avatar: avatar
+              });
+            }
+          });
+
+          // 确保最多使用5个数据（因为地图标记只有5个）
+          const limitedLocations = personLocations.slice(0, 5);
+          console.log(`最终使用${limitedLocations.length}个位置数据`, limitedLocations);
+
+          // 如果没有找到任何人物，添加默认数据
+          if (limitedLocations.length === 0) {
+            limitedLocations.push(
+              { name: "裴矜予", location: "港城警署总部，重案组办公室", avatar: "https://pub-07f3e1b810bb45079240dae84aaadd3e.r2.dev/profile/裴矜予.jpg" },
+              { name: "林修远", location: "港城大学附近高档公寓家中，书房", avatar: "https://pub-07f3e1b810bb45079240dae84aaadd3e.r2.dev/profile/林修远.jpg" },
+              { name: "石一", location: "旺角某地下麻将馆", avatar: "https://pub-07f3e1b810bb45079240dae84aaadd3e.r2.dev/profile/石一.jpg" },
+              { name: "陈临川", location: "中环写字楼顶层私人诊所，手术室", avatar: "https://pub-07f3e1b810bb45079240dae84aaadd3e.r2.dev/profile/陈临川.jpg" },
+              { name: "吴浩明", location: "港城大学宿舍楼，404室", avatar: "https://pub-07f3e1b810bb45079240dae84aaadd3e.r2.dev/profile/吴浩明.jpg" }
+            );
+          }
+
+          // 分析地点相似度并生成位置
+          const locationGroups = [];
+          const processedIndices = new Set();
+
+          // 遍历每个地点，与其他地点比较相似度
+          for (let i = 0; i < limitedLocations.length; i++) {
+            if (processedIndices.has(i)) continue;
+
+            const currentGroup = [i];
+            processedIndices.add(i);
+
+            for (let j = i + 1; j < limitedLocations.length; j++) {
+              if (processedIndices.has(j)) continue;
+
+              const similarity = calculateLocationSimilarity(
+                limitedLocations[i].location,
+                limitedLocations[j].location
+              );
+
+              if (similarity > 0.6) {
+                currentGroup.push(j);
+                processedIndices.add(j);
               }
             }
-            console.log(`为${name}找到自定义头像: ${avatar}`);
-          } else {
-            console.log(`没有找到${name}的头像元素，使用默认头像`);
+
+            locationGroups.push(currentGroup);
           }
 
-          // 只有当名称有效时才添加到位置列表
-          personLocations.push({
-            name: name,
-            location: location,
-            avatar: avatar
+          // 为每个组生成位置
+          locationGroups.forEach(group => {
+            if (group.length === 1) {
+              // 单独的地点，完全随机位置
+              const position = generateRandomPosition(existingPositions);
+              existingPositions.push(position);
+              limitedLocations[group[0]].position = position;
+            } else {
+              // 相似地点组，生成相近的位置
+              const basePosition = generateRandomPosition(existingPositions);
+              existingPositions.push(basePosition);
+              limitedLocations[group[0]].position = basePosition;
+
+              // 为组内其他地点生成相近位置
+              for (let i = 1; i < group.length; i++) {
+                const position = generateRandomPosition(existingPositions, true, basePosition);
+                existingPositions.push(position);
+                limitedLocations[group[i]].position = position;
+              }
+            }
           });
-        }
-      });
 
-      // 确保最多使用5个数据（因为地图标记只有5个）
-      const limitedLocations = personLocations.slice(0, 5);
-      console.log(`最终使用${limitedLocations.length}个位置数据`, limitedLocations);
+          // 清除旧的标记指示器
+          $('.marker-indicator').remove();
 
-      // 如果没有找到任何人物，添加默认数据
-      if (limitedLocations.length === 0) {
-        limitedLocations.push(
-          { name: "裴矜予", location: "港城警署总部，重案组办公室", avatar: "https://pub-07f3e1b810bb45079240dae84aaadd3e.r2.dev/profile/裴矜予.jpg" },
-          { name: "林修远", location: "港城大学附近高档公寓家中，书房", avatar: "https://pub-07f3e1b810bb45079240dae84aaadd3e.r2.dev/profile/林修远.jpg" },
-          { name: "石一", location: "旺角某地下麻将馆", avatar: "https://pub-07f3e1b810bb45079240dae84aaadd3e.r2.dev/profile/石一.jpg" },
-          { name: "陈临川", location: "中环写字楼顶层私人诊所，手术室", avatar: "https://pub-07f3e1b810bb45079240dae84aaadd3e.r2.dev/profile/陈临川.jpg" },
-          { name: "吴浩明", location: "港城大学宿舍楼，404室", avatar: "https://pub-07f3e1b810bb45079240dae84aaadd3e.r2.dev/profile/吴浩明.jpg" }
-        );
-      }
+          // 将人物信息与地图标记关联
+          $('.map-marker').each(function (index) {
+            if (index < limitedLocations.length) {
+              const person = limitedLocations[index];
+              const position = person.position;
 
-      // 分析地点相似度并生成位置
-      const locationGroups = [];
-      const processedIndices = new Set();
+              // 使用HTML属性存储数据
+              $(this).attr('data-person-name', person.name);
+              $(this).attr('data-person-location', person.location);
+              $(this).attr('data-person-avatar', person.avatar);
 
-      // 遍历每个地点，与其他地点比较相似度
-      for (let i = 0; i < limitedLocations.length; i++) {
-        if (processedIndices.has(i)) continue;
+              // 更新标记位置
+              $(this).css({
+                'top': `${position.top}%`,
+                'left': `${position.left}%`
+              });
 
-        const currentGroup = [i];
-        processedIndices.add(i);
+              // 增加指示器
+              const markerIndicator = $(`<div class="marker-indicator">${person.name}</div>`);
+              $(this).append(markerIndicator);
+            }
+          });
 
-        for (let j = i + 1; j < limitedLocations.length; j++) {
-          if (processedIndices.has(j)) continue;
+          console.log('人物位置已更新');
 
-          const similarity = calculateLocationSimilarity(
-            limitedLocations[i].location,
-            limitedLocations[j].location
-          );
+          // 如果在地图应用中且需要显示提示，则显示更新提示
+          if ($('#map_app_interface').is(':visible') && showUpdateToast) {
+            const updateToast = $(`<div class="map-toast">已更新${limitedLocations.length}个位置数据</div>`);
+            $('.phone-content').append(updateToast);
 
-          if (similarity > 0.6) {
-            currentGroup.push(j);
-            processedIndices.add(j);
+            // 2秒后移除提示
+            setTimeout(function () {
+              updateToast.fadeOut(300, function () {
+                $(this).remove();
+              });
+            }, 2000);
           }
+        } catch (error) {
+          console.error('更新位置数据时出错:', error);
+          // 显示错误提示
+          const errorToast = $(`<div class="map-toast error">更新位置数据时出错</div>`);
+          $('.phone-content').append(errorToast);
+          setTimeout(() => {
+            errorToast.fadeOut(300, function () {
+              $(this).remove();
+            });
+          }, 2000);
         }
-
-        locationGroups.push(currentGroup);
-      }
-
-      // 为每个组生成位置
-      locationGroups.forEach(group => {
-        if (group.length === 1) {
-          // 单独的地点，完全随机位置
-          const position = generateRandomPosition(existingPositions);
-          existingPositions.push(position);
-          limitedLocations[group[0]].position = position;
-        } else {
-          // 相似地点组，生成相近的位置
-          const basePosition = generateRandomPosition(existingPositions);
-          existingPositions.push(basePosition);
-          limitedLocations[group[0]].position = basePosition;
-
-          // 为组内其他地点生成相近位置
-          for (let i = 1; i < group.length; i++) {
-            const position = generateRandomPosition(existingPositions, true, basePosition);
-            existingPositions.push(position);
-            limitedLocations[group[i]].position = position;
-          }
-        }
-      });
-
-      // 清除旧的标记指示器
-      $('.marker-indicator').remove();
-
-      // 将人物信息与地图标记关联
-      $('.map-marker').each(function (index) {
-        if (index < limitedLocations.length) {
-          const person = limitedLocations[index];
-          const position = person.position;
-
-          // 使用HTML属性存储数据
-          $(this).attr('data-person-name', person.name);
-          $(this).attr('data-person-location', person.location);
-          $(this).attr('data-person-avatar', person.avatar);
-
-          // 更新标记位置
-          $(this).css({
-            'top': `${position.top}%`,
-            'left': `${position.left}%`
-          });
-
-          // 增加指示器
-          const markerIndicator = $(`<div class="marker-indicator">${person.name}</div>`);
-          $(this).append(markerIndicator);
-        }
-      });
-
-      console.log('人物位置已更新');
-
-      // 如果在地图应用中且需要显示提示，则显示更新提示
-      if ($('#map_app_interface').is(':visible') && showUpdateToast) {
-        const updateToast = $(`<div class="map-toast">已更新${limitedLocations.length}个位置数据</div>`);
-        $('.phone-content').append(updateToast);
-
-        // 2秒后移除提示
-        setTimeout(function () {
-          updateToast.fadeOut(300, function () {
-            $(this).remove();
-          });
-        }, 2000);
-      }
-    }, 100); // 添加小延迟以确保DOM已更新
+      }, 100); // 添加小延迟以确保DOM已更新
+    }, 100); // 100ms防抖
   }
 
   // 显示位置信息弹窗
@@ -2729,171 +2745,126 @@
   function updateMonitorData() {
     console.log('开始更新监控数据...');
 
-    // 存储找到的所有人物数据
-    const personData = {};
-
-    // 首先从DOM中查找进度数据
-    const progressElements = $('[class*="person-progress-"]');
-    console.log(`找到 ${progressElements.length} 个进度元素`);
-
-    // 处理找到的进度数据
-    progressElements.each(function () {
-      const classes = $(this).attr('class') || '';
-      let name = '';
-
-      // 从class名称中提取人物名称
-      const match = classes.match(/person-progress-([^\\s]+)/);
-      if (match) {
-        name = match[1];
-        console.log(`找到人物名称: ${name}`);
-
-        // 获取进度值
-        const progress = parseInt($(this).text().trim(), 10);
-        console.log(`${name}的进度值: ${progress}`);
-
-        // 查找头像 - 直接使用完整的选择器
-        const avatarSelector = `.person-avatar-${name}`;
-        const avatarElement = $(avatarSelector);
-        let avatar = `https://pub-07f3e1b810bb45079240dae84aaadd3e.r2.dev/profile/${name}.jpg`;
-
-        if (avatarElement.length > 0) {
-          const avatarUrl = avatarElement.text().trim();
-          if (avatarUrl && avatarUrl.includes('http')) {
-            avatar = avatarUrl;
-            console.log(`找到${name}的头像URL: ${avatar}`);
-          }
-        } else {
-          console.log(`使用默认头像URL: ${avatar}`);
-        }
-
-        // 查找声明 - 使用多种选择器
-        const statementSelectors = [
-          `.person-statement-${name}`,
-          `[class*="person-statement-${name}"]`,
-          `[data-statement][data-person="${name}"]`
-        ];
-
-        let statement = '无可用数据...';
-        let foundStatement = false;
-
-        // 首先在DOM中查找
-        for (const selector of statementSelectors) {
-          const statementElement = $(selector);
-          if (statementElement.length > 0) {
-            statement = statementElement.text().trim();
-            console.log(`在DOM中找到${name}的声明: ${statement}`);
-            foundStatement = true;
-            break;
-          }
-        }
-
-        // 如果在DOM中没找到，尝试从聊天记录中查找
-        if (!foundStatement && typeof SillyTavern !== 'undefined' && typeof SillyTavern.getContext === 'function') {
-          try {
-            const context = SillyTavern.getContext();
-            if (context && context.chat && Array.isArray(context.chat)) {
-              const $tempContainer = $('<div></div>');
-
-              // 从新到旧遍历消息
-              for (let i = context.chat.length - 1; i >= 0 && !foundStatement; i--) {
-                const message = context.chat[i];
-                if (message && message.mes) {
-                  $tempContainer.html(message.mes);
-
-                  // 尝试所有声明选择器
-                  for (const selector of statementSelectors) {
-                    const found = $tempContainer.find(selector);
-                    if (found.length > 0) {
-                      statement = found.first().text().trim();
-                      console.log(`在聊天记录#${i}中找到${name}的声明: ${statement}`);
-                      foundStatement = true;
-                      break;
-                    }
-                  }
-                }
-              }
-            }
-          } catch (error) {
-            console.error(`查找${name}的声明时出错:`, error);
-          }
-        }
-
-        // 添加到人物数据
-        personData[name] = {
-          name: name,
-          progress: progress,
-          avatar: avatar,
-          statement: statement
-        };
-
-        console.log(`已添加${name}的完整数据:`, personData[name]);
-      }
-    });
-
-    // 更新监控卡片
-    updateMonitorCards(personData);
-  }
-
-  // 更新监控卡片
-  function updateMonitorCards(personData) {
-    console.log('开始更新监控卡片，数据：', personData);
-
-    // 清空现有卡片
-    $('.monitor-cards').empty();
-
-    // 创建人物卡片
-    Object.values(personData).forEach((person, index) => {
-      console.log('创建卡片：', person);
-
-      // 计算进度条显示
-      const normalizedProgress = ((person.progress + 50) / 150 * 100).toFixed(1);
-      const progressColor = person.progress >= 0 ? 'rgba(0, 210, 255, 0.9)' : 'rgba(255, 70, 70, 0.9)';
-
-      const card = $(`
-            <div class="monitor-card">
-                <div class="monitor-card-avatar">
-                    <img src="${person.avatar}" alt="${person.name}" onerror="this.src='https://pub-07f3e1b810bb45079240dae84aaadd3e.r2.dev/profile/defult.jpg'">
-                </div>
-                <div class="monitor-card-info">
-                    <div class="monitor-card-name">${person.name}</div>
-                    <div class="monitor-card-progress">
-                        <div class="progress-bar">
-                            <div class="progress-fill" style="width: 0%;"></div>
-                        </div>
-                        <span class="progress-text" style="color: ${progressColor};">${person.progress}</span>
-                    </div>
-                    <div class="monitor-card-statement">${person.statement}</div>
-                </div>
-            </div>
-        `);
-
-      // 添加到容器
-      $('.monitor-cards').append(card);
-
-      // 添加进度条动画
-      setTimeout(function () {
-        card.find('.progress-fill').css({
-          'width': `${normalizedProgress}%`,
-          'background': person.progress >= 0 ?
-            'linear-gradient(90deg, rgba(0, 210, 255, 0.7), rgba(0, 140, 255, 0.9))' :
-            'linear-gradient(90deg, rgba(255, 70, 70, 0.7), rgba(255, 40, 40, 0.9))'
-        });
-      }, 300);
-    });
-
-    console.log(`已更新${Object.keys(personData).length}个监控数据`);
-
-    // 显示更新提示
-    if ($('#monitor_interface').is(':visible')) {
-      const updateToast = $(`<div class="monitor-toast">已同步${Object.keys(personData).length}条监控数据</div>`);
-      $('.phone-content').append(updateToast);
-
-      setTimeout(function () {
-        updateToast.fadeOut(300, function () {
-          $(this).remove();
-        });
-      }, 2000);
+    // 使用防抖，避免频繁更新
+    if (window.monitorUpdateTimeout) {
+      clearTimeout(window.monitorUpdateTimeout);
     }
+
+    window.monitorUpdateTimeout = setTimeout(() => {
+      // 存储找到的所有人物数据
+      const personData = {};
+
+      // 一次性获取所有需要的元素
+      const progressElements = $('[class*="person-progress-"]');
+      const avatarElements = $('[class*="person-avatar-"]');
+      const statementElements = $('[class*="person-statement-"]');
+
+      // 创建映射以加快查找
+      const avatarMap = {};
+      const statementMap = {};
+
+      // 批量处理头像和声明数据
+      avatarElements.each(function () {
+        const classes = $(this).attr('class') || '';
+        const match = classes.match(/person-avatar-([^\\s]+)/);
+        if (match) {
+          avatarMap[match[1]] = $(this).text().trim();
+        }
+      });
+
+      statementElements.each(function () {
+        const classes = $(this).attr('class') || '';
+        const match = classes.match(/person-statement-([^\\s]+)/);
+        if (match) {
+          statementMap[match[1]] = $(this).text().trim();
+        }
+      });
+
+      // 处理进度数据
+      progressElements.each(function () {
+        const classes = $(this).attr('class') || '';
+        const match = classes.match(/person-progress-([^\\s]+)/);
+
+        if (match) {
+          const name = match[1];
+          const progress = parseInt($(this).text().trim(), 10);
+
+          // 使用映射快速查找头像和声明
+          const avatar = avatarMap[name] || `https://pub-07f3e1b810bb45079240dae84aaadd3e.r2.dev/profile/${name}.jpg`;
+          const statement = statementMap[name] || '无可用数据...';
+
+          // 添加到人物数据
+          personData[name] = {
+            name,
+            progress,
+            avatar,
+            statement
+          };
+        }
+      });
+
+      // 使用虚拟列表更新DOM
+      const $monitorCards = $('.monitor-cards');
+      const fragment = document.createDocumentFragment();
+      const batchSize = 5; // 每批处理5个卡片
+      const totalCards = Object.keys(personData).length;
+      let processedCards = 0;
+
+      function processBatch() {
+        const start = processedCards;
+        const end = Math.min(start + batchSize, totalCards);
+        const batch = Object.values(personData).slice(start, end);
+
+        batch.forEach(person => {
+          const normalizedProgress = ((person.progress + 50) / 150 * 100).toFixed(1);
+          const progressColor = person.progress >= 0 ? 'rgba(0, 210, 255, 0.9)' : 'rgba(255, 70, 70, 0.9)';
+
+          const card = document.createElement('div');
+          card.className = 'monitor-card';
+          card.innerHTML = `
+            <div class="monitor-card-avatar">
+              <img src="${person.avatar}" alt="${person.name}" onerror="this.src='https://pub-07f3e1b810bb45079240dae84aaadd3e.r2.dev/profile/defult.jpg'">
+            </div>
+            <div class="monitor-card-info">
+              <div class="monitor-card-name">${person.name}</div>
+              <div class="monitor-card-progress">
+                <div class="progress-bar">
+                  <div class="progress-fill" style="width: ${normalizedProgress}%"></div>
+                </div>
+                <span class="progress-text" style="color: ${progressColor}">${person.progress}</span>
+              </div>
+              <div class="monitor-card-statement">${person.statement}</div>
+            </div>`;
+
+          fragment.appendChild(card);
+        });
+
+        processedCards = end;
+
+        if (processedCards < totalCards) {
+          // 使用requestAnimationFrame处理下一批
+          requestAnimationFrame(processBatch);
+        } else {
+          // 所有卡片处理完成，一次性更新DOM
+          $monitorCards.empty().append(fragment);
+
+          // 显示更新提示
+          if ($('#monitor_interface').is(':visible')) {
+            const updateToast = $(`<div class="monitor-toast">已同步${totalCards}条监控数据</div>`);
+            $('.phone-content').append(updateToast);
+
+            setTimeout(() => {
+              updateToast.fadeOut(300, function () {
+                $(this).remove();
+              });
+            }, 2000);
+          }
+        }
+      }
+
+      // 开始处理第一批
+      requestAnimationFrame(processBatch);
+    }, 100); // 100ms防抖
   }
 
 })();
