@@ -2172,52 +2172,6 @@
     $('#test_results_popup').show();
   }
 
-  // 计算两个地点的相似度
-  function calculateLocationSimilarity(location1, location2) {
-    const chars1 = Array.from(location1);
-    const chars2 = Array.from(location2);
-    const commonChars = chars1.filter(char => chars2.includes(char));
-    return commonChars.length / Math.max(chars1.length, chars2.length);
-  }
-
-  // 生成随机位置
-  function generateRandomPosition(existingPositions, isSimilar = false, basePosition = null) {
-    let position;
-    if (isSimilar && basePosition) {
-      // 如果是相似地点，在基准位置附近20%范围内生成
-      const variance = 20;
-      position = {
-        top: Math.max(0, Math.min(100,
-          basePosition.top + (Math.random() - 0.5) * variance)),
-        left: Math.max(0, Math.min(100,
-          basePosition.left + (Math.random() - 0.5) * variance))
-      };
-    } else {
-      // 完全随机位置
-      position = {
-        top: Math.random() * 80 + 10,  // 10-90%
-        left: Math.random() * 80 + 10  // 10-90%
-      };
-    }
-
-    // 确保新位置与现有位置不重叠
-    while (existingPositions.some(pos =>
-      Math.abs(pos.top - position.top) < 10 &&
-      Math.abs(pos.left - position.left) < 10)) {
-      if (isSimilar && basePosition) {
-        position.top = Math.max(0, Math.min(100,
-          basePosition.top + (Math.random() - 0.5) * 20));
-        position.left = Math.max(0, Math.min(100,
-          basePosition.left + (Math.random() - 0.5) * 20));
-      } else {
-        position.top = Math.random() * 80 + 10;
-        position.left = Math.random() * 80 + 10;
-      }
-    }
-
-    return position;
-  }
-
   // 更新人物位置函数
   function updatePersonLocations(showUpdateToast = true) {
     // 使用防抖，避免频繁更新
@@ -2458,54 +2412,23 @@
             );
           }
 
-          // 分析地点相似度并生成位置
-          const locationGroups = [];
-          const processedIndices = new Set();
+          // 为每个位置生成随机坐标
+          const existingPositions = [];
+          limitedLocations.forEach(person => {
+            // 生成随机位置，确保不会重叠
+            let position;
+            do {
+              position = {
+                top: Math.random() * 80 + 10,  // 10-90%
+                left: Math.random() * 80 + 10  // 10-90%
+              };
+            } while (existingPositions.some(pos =>
+              Math.abs(pos.top - position.top) < 10 &&
+              Math.abs(pos.left - position.left) < 10
+            ));
 
-          // 遍历每个地点，与其他地点比较相似度
-          for (let i = 0; i < limitedLocations.length; i++) {
-            if (processedIndices.has(i)) continue;
-
-            const currentGroup = [i];
-            processedIndices.add(i);
-
-            for (let j = i + 1; j < limitedLocations.length; j++) {
-              if (processedIndices.has(j)) continue;
-
-              const similarity = calculateLocationSimilarity(
-                limitedLocations[i].location,
-                limitedLocations[j].location
-              );
-
-              if (similarity > 0.6) {
-                currentGroup.push(j);
-                processedIndices.add(j);
-              }
-            }
-
-            locationGroups.push(currentGroup);
-          }
-
-          // 为每个组生成位置
-          locationGroups.forEach(group => {
-            if (group.length === 1) {
-              // 单独的地点，完全随机位置
-              const position = generateRandomPosition(existingPositions);
-              existingPositions.push(position);
-              limitedLocations[group[0]].position = position;
-            } else {
-              // 相似地点组，生成相近的位置
-              const basePosition = generateRandomPosition(existingPositions);
-              existingPositions.push(basePosition);
-              limitedLocations[group[0]].position = basePosition;
-
-              // 为组内其他地点生成相近位置
-              for (let i = 1; i < group.length; i++) {
-                const position = generateRandomPosition(existingPositions, true, basePosition);
-                existingPositions.push(position);
-                limitedLocations[group[i]].position = position;
-              }
-            }
+            existingPositions.push(position);
+            person.position = position;
           });
 
           // 清除旧的标记指示器
