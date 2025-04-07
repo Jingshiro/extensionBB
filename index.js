@@ -3088,116 +3088,66 @@
 
   // 专门处理直接传入的HTML格式
   function parseCustomHTMLFormat() {
-    console.log('尝试解析自定义HTML格式...');
-
-    // 从页面中查找特定的HTML内容
+    console.log('开始解析自定义HTML格式...');
     const results = [];
     const personData = {};
 
-    // 查找所有可能包含人物数据的div元素
+    // 查找所有div元素
     $('div').each(function () {
-      const content = $(this).text().trim();
+      const $div = $(this);
+      const className = $div.attr('class') || '';
+      const content = $div.text().trim();
 
-      // 忽略空内容
-      if (!content) return;
-
-      // 检查是否是头像元素
-      if (content.includes('person-avatar-')) {
-        const match = content.match(/person-avatar-(\S+)/);
-        if (match && match[1]) {
-          const personName = match[1];
-
-          // 如果还没有该人物的数据，创建一个新对象
-          if (!personData[personName]) {
-            personData[personName] = {
-              name: personName,
-              avatar: '',
-              progress: 0,
-              statement: ''
-            };
+      // 从类名中提取人名和数据类型
+      let match;
+      if (className.includes('person-')) {
+        if (className.includes('person-avatar-')) {
+          match = className.match(/person-avatar-(.+)/);
+          if (match) {
+            const name = match[1];
+            if (!personData[name]) {
+              personData[name] = { name, avatar: '', progress: 0, statement: '' };
+            }
+            personData[name].avatar = content;
           }
-
-          // 提取URL
-          const urlMatch = content.match(/(https:\/\/[^\s]+\.jpg)/);
-          if (urlMatch && urlMatch[1]) {
-            personData[personName].avatar = urlMatch[1];
-          } else {
-            // 如果整个内容看起来像URL，直接使用它
-            if (content.includes('https://') && content.includes('.jpg')) {
-              personData[personName].avatar = content;
+        } else if (className.includes('person-progress-')) {
+          match = className.match(/person-progress-(.+)/);
+          if (match) {
+            const name = match[1];
+            if (!personData[name]) {
+              personData[name] = { name, avatar: '', progress: 0, statement: '' };
+            }
+            const progressValue = parseInt(content, 10);
+            if (!isNaN(progressValue)) {
+              personData[name].progress = progressValue;
             }
           }
-        }
-      }
-
-      // 检查是否是进度元素
-      else if (content.includes('person-progress-')) {
-        const match = content.match(/person-progress-(\S+)/);
-        if (match && match[1]) {
-          const personName = match[1];
-
-          // 如果还没有该人物的数据，创建一个新对象
-          if (!personData[personName]) {
-            personData[personName] = {
-              name: personName,
-              avatar: '',
-              progress: 0,
-              statement: ''
-            };
-          }
-
-          // 提取进度值
-          const progressMatch = content.match(/-?\d+/);
-          if (progressMatch) {
-            personData[personName].progress = parseInt(progressMatch[0], 10);
-          }
-        }
-      }
-
-      // 检查是否是声明元素
-      else if (content.includes('person-statement-')) {
-        const match = content.match(/person-statement-(\S+)/);
-        if (match && match[1]) {
-          const personName = match[1];
-
-          // 如果还没有该人物的数据，创建一个新对象
-          if (!personData[personName]) {
-            personData[personName] = {
-              name: personName,
-              avatar: '',
-              progress: 0,
-              statement: ''
-            };
-          }
-
-          // 提取声明内容
-          let statement = content.replace(`person-statement-${personName}`, '').trim();
-
-          // 如果仍然有内容，使用它
-          if (statement) {
-            personData[personName].statement = statement;
+        } else if (className.includes('person-statement-')) {
+          match = className.match(/person-statement-(.+)/);
+          if (match) {
+            const name = match[1];
+            if (!personData[name]) {
+              personData[name] = { name, avatar: '', progress: 0, statement: '' };
+            }
+            personData[name].statement = content;
           }
         }
       }
     });
 
-    console.log('从自定义HTML解析的人物数据:', personData);
-
-    // 将人物数据转换为数组
-    for (const personName in personData) {
-      const person = personData[personName];
-
-      // 确保有有效的头像URL
-      if (!person.avatar || !person.avatar.includes('http')) {
-        person.avatar = `https://pub-07f3e1b810bb45079240dae84aaadd3e.r2.dev/profile/${personName}.jpg`;
-      }
-
+    // 将收集到的数据转换为结果数组
+    for (const name in personData) {
+      const person = personData[name];
       // 生成唯一ID
       const id = `PSB-ID-${Math.floor(1000 + Math.random() * 9000)}`;
 
-      // 添加到结果数组
+      // 确保头像URL存在
+      if (!person.avatar || !person.avatar.includes('http')) {
+        person.avatar = `https://pub-07f3e1b810bb45079240dae84aaadd3e.r2.dev/profile/${name}.jpg`;
+      }
+
       results.push({
-        id: id,
+        id,
         name: person.name,
         progress: person.progress,
         avatar: person.avatar,
@@ -3205,6 +3155,7 @@
       });
     }
 
+    console.log('解析完成，找到的数据：', results);
     return results;
   }
 
