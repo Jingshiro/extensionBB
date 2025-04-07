@@ -7,6 +7,7 @@
   // 全局变量用于存储登录状态
   let isLoggedIn = false;
   let isWaitingForMapResponse = false;
+  let isWaitingForMonitorResponse = false;  // 新增：监控响应等待状态
 
   // 等待页面加载完成
   $(document).ready(function () {
@@ -23,10 +24,8 @@
       // 初始化登录按钮
       initLoginButton();
 
-      // 每次页面加载时，重置登录状态为未登录
-      isLoggedIn = false;
-      updateLoginButtonState();
-      console.log('页面已加载，登录状态已重置为：未登录');
+      // 从localStorage加载登录状态
+      loadLoginState();
 
       // 添加消息监听器
       if (typeof eventSource !== 'undefined' && typeof eventSource.on === 'function') {
@@ -39,10 +38,9 @@
     }, 2000);
   });
 
-  // 从localStorage加载登录状态（这个函数不再使用，保留代码仅供参考）
+  // 从localStorage加载登录状态
   function loadLoginState() {
-    const savedLoginState = localStorage.getItem('isLoggedIn');
-
+    const savedLoginState = localStorage.getItem('FSpanel_login_state');
     if (savedLoginState === 'true') {
       isLoggedIn = true;
       updateLoginButtonState();
@@ -54,10 +52,10 @@
     }
   }
 
-  // 保存登录状态（这个函数不再使用，保留代码仅供参考）
+  // 保存登录状态到localStorage
   function saveLoginState() {
-    localStorage.setItem('isLoggedIn', isLoggedIn);
-    console.log('登录状态已保存到本地存储');
+    localStorage.setItem('FSpanel_login_state', isLoggedIn);
+    console.log('登录状态已保存到本地存储:', isLoggedIn);
   }
 
   // 初始化登录按钮
@@ -314,6 +312,13 @@
                     <div class="wallpaper-btn">
                         <i class="fa-solid fa-image"></i>
                     </div>
+
+                    <div class="logout-btn" id="logout_btn">
+                        <svg t="1744022864911" class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="2627" width="200" height="200">
+                            <path d="M417.185185 881.777778h227.555556V9.481481H0v872.296297" fill="#38454F" p-id="2628"></path>
+                            <path d="M417.185185 142.222222L0 9.481481v872.296297l417.185185 132.740741z" fill="#E7ECED" p-id="2629"></path>
+                        </svg>
+                    </div>
                     
                     <div class="phone-close-btn" id="phone_close_btn">
                         <i class="fa-solid fa-xmark"></i>
@@ -361,6 +366,27 @@
             </div>
         `);
 
+    // 创建监控界面
+    const $monitorInterface = $(`
+        <!-- Monitor Interface -->
+        <div id="monitor_interface" class="monitor-interface" style="display: none;">
+            <div class="monitor-header">
+                <div class="monitor-back-btn" id="monitor_back_btn">
+                    <i class="fa-solid fa-chevron-left"></i>
+                </div>
+                <div class="monitor-title">实时嫌疑监控</div>
+                <div class="monitor-refresh-btn" id="monitor_refresh_btn">
+                    <i class="fa-solid fa-arrows-rotate"></i>
+                </div>
+            </div>
+            <div class="monitor-content">
+                <div class="monitor-cards">
+                    <!-- 卡片将由JavaScript动态生成 -->
+                </div>
+            </div>
+        </div>
+    `);
+
     // 添加登录对话框到页面
     $('body').append($loginDialog);
     console.log('登录对话框已添加到页面');
@@ -372,6 +398,10 @@
     // 添加手机界面到页面
     $('body').append($phoneInterface);
     console.log('手机界面已添加到页面');
+
+    // 添加监控界面到页面
+    $('body').append($monitorInterface);
+    console.log('监控界面已添加到页面');
 
     // CSS由manifest.json自动加载
 
@@ -468,6 +498,9 @@
           if (username === 'Fangshu' && password === 'FS123') {
             // 默认账户登录成功
             isLoggedIn = true;
+
+            // 保存登录状态
+            saveLoginState();
 
             // 显示成功提示，放在页面顶部
             const successToast = $(`<div class="auth-toast success top-toast"><i class="fa-solid fa-check-circle"></i> 授权成功 - 欢迎回来，${username}警官，希望你还活着。</div>`);
@@ -630,11 +663,11 @@
 
       // 居中显示对话框
       $customWallpaperDialog.css({
-        'position': 'absolute',
+        'position': 'fixed',
         'top': '50%',
         'left': '50%',
         'transform': 'translate(-50%, -50%)',
-        'z-index': '100'
+        'z-index': '100000'
       });
 
       // 关闭按钮事件
@@ -833,11 +866,92 @@
     });
 
     $('#monitor_app').on('click', function () {
-      alert('嫌疑监控应用启动中...');
+      if (isWaitingForMonitorResponse) {
+        console.log('正在等待响应，请稍候...');
+        return;
+      }
+
+      // 设置等待标志
+      isWaitingForMonitorResponse = true;
+
+      // 显示监控界面
+      showMonitorInterface();
+
+      // 显示加载提示
+      const loadingToast = $(`<div class="monitor-toast waiting-toast">收到回复后请点击刷新按钮</div>`);
+      $('.phone-content').append(loadingToast);
+
+      // 发送查看监控消息
+      sendVirtualMessage('@当前进度查询');
+
+      // 绑定刷新按钮点击事件
+      $('#monitor_refresh_btn').one('click', function () {
+        isWaitingForMonitorResponse = false;
+        $('.waiting-toast').fadeOut(200, function () {
+          $(this).remove();
+        });
+
+        // 更新监控数据
+        updateMonitorData();
+      });
+
+      // 60秒超时处理
+      setTimeout(() => {
+        if (isWaitingForMonitorResponse) {
+          console.log('响应超时，显示默认监控界面');
+          isWaitingForMonitorResponse = false;
+          $('.waiting-toast').fadeOut(200, function () {
+            $(this).remove();
+
+            // 添加超时提示
+            const timeoutToast = $(`<div class="monitor-toast error">获取监控信息超时，显示默认数据</div>`);
+            $('.phone-content').append(timeoutToast);
+            setTimeout(() => {
+              timeoutToast.fadeOut(300, function () {
+                $(this).remove();
+              });
+            }, 3000);
+          });
+        }
+      }, 60000);
     });
 
     $('#counsel_app').on('click', function () {
       alert('心理咨询应用启动中...');
+    });
+
+    // 绑定退出按钮事件
+    $('#logout_btn').on('click', function () {
+      // 显示确认对话框
+      const confirmLogout = confirm('确定要退出登录吗？');
+
+      if (confirmLogout) {
+        // 设置登录状态为false
+        isLoggedIn = false;
+
+        // 保存登录状态
+        saveLoginState();
+
+        // 更新登录按钮状态
+        updateLoginButtonState();
+
+        // 隐藏手机界面
+        $('#phone_interface').hide();
+        preventScrollOnPopup(false);
+
+        // 显示退出成功提示
+        const logoutToast = $(`<div class="auth-toast success"><i class="fa-solid fa-check-circle"></i> 已安全退出系统</div>`);
+        $('body').append(logoutToast);
+
+        // 使用重定位函数确保正确显示
+        repositionAllPopups();
+
+        setTimeout(function () {
+          logoutToast.fadeOut(300, function () {
+            $(this).remove();
+          });
+        }, 2000);
+      }
     });
   }
 
@@ -2515,4 +2629,583 @@
       console.error('处理地图响应时出错:', error);
     }
   }
+
+  // 显示监控界面
+  function showMonitorInterface() {
+    console.log('准备显示监控应用...');
+
+    // 检查监控界面元素是否存在
+    const monitorInterface = $('#monitor_interface');
+    if (monitorInterface.length === 0) {
+      console.error('错误：找不到监控界面元素！');
+      return;
+    }
+
+    // 隐藏手机主界面元素
+    const mainElements = $('.app-grid, .time, .date, .add-wallpaper-btn, .wallpaper-btn');
+    mainElements.hide();
+
+    // 确保监控界面在phone-content中
+    monitorInterface.appendTo('.phone-content');
+    console.log('监控界面已移动到phone-content中');
+
+    // 设置监控界面样式（移除这部分，改用CSS类管理）
+    monitorInterface.css({
+      'display': 'flex',
+      'opacity': '1',
+      'visibility': 'visible',
+      'z-index': '100'
+    });
+
+    // 绑定返回按钮事件
+    $('#monitor_back_btn').off('click').on('click', function () {
+      console.log('返回按钮被点击');
+      // 隐藏监控界面
+      monitorInterface.hide();
+      // 显示手机主界面元素
+      mainElements.show();
+    });
+
+    // 绑定刷新按钮事件
+    $('#monitor_refresh_btn').off('click').on('click', function () {
+      console.log('刷新按钮被点击');
+      $(this).addClass('refreshing');
+
+      // 添加加载动画
+      const loadingOverlay = $(`
+        <div class="monitor-loading">
+          <div class="monitor-loading-text">加载数据中...</div>
+        </div>
+      `);
+      $('.monitor-content').append(loadingOverlay);
+
+      // 模拟数据加载延迟
+      setTimeout(function () {
+        updateMonitorData();
+        loadingOverlay.fadeOut(300, function () {
+          $(this).remove();
+        });
+        $('#monitor_refresh_btn').removeClass('refreshing');
+      }, 1500);
+    });
+
+    // 移除系统信息面板的代码
+    $('.monitor-system-info').remove();
+
+    // 更新监控数据
+    console.log('开始更新监控数据...');
+    updateMonitorData();
+
+    // 创建随机数据点效果
+    createRandomDataPoints();
+  }
+
+  // 创建随机数据点效果
+  function createRandomDataPoints() {
+    // 清除现有数据点
+    $('.monitor-data-point').remove();
+
+    // 创建新的随机数据点
+    const content = $('.phone-content');
+    const contentWidth = content.width();
+    const contentHeight = content.height();
+
+    for (let i = 0; i < 12; i++) {
+      const x = Math.random() * contentWidth;
+      const y = Math.random() * contentHeight;
+
+      const dataPoint = $(`<div class="monitor-data-point"></div>`);
+      dataPoint.css({
+        'left': x + 'px',
+        'top': y + 'px',
+        'animation-delay': (Math.random() * 2) + 's'
+      });
+
+      content.append(dataPoint);
+    }
+  }
+
+  // 更新监控数据
+  function updateMonitorData() {
+    console.log('开始更新监控数据...');
+    let monitorData = [];
+
+    try {
+      // 尝试使用特定的解析函数处理页面内容
+      const parsedData = parseCustomHTMLFormat();
+
+      if (parsedData && parsedData.length > 0) {
+        console.log('成功从HTML内容解析数据:', parsedData);
+        monitorData = parsedData;
+      } else {
+        console.log('无法从HTML内容解析数据，尝试其他方法...');
+
+        // 在页面中查找所有符合模式的人物数据
+        console.log('尝试直接解析页面中的人物数据...');
+
+        // 先尝试直接解析页面文本内容
+        const bodyText = $('body').text();
+
+        // 从页面文本中提取所有person-avatar，person-progress和person-statement模式
+        const avatarMatches = bodyText.match(/person-avatar-(\S+)/g) || [];
+        const progressMatches = bodyText.match(/person-progress-(\S+)/g) || [];
+        const statementMatches = bodyText.match(/person-statement-(\S+)/g) || [];
+
+        console.log('找到的头像匹配:', avatarMatches);
+        console.log('找到的进度匹配:', progressMatches);
+        console.log('找到的声明匹配:', statementMatches);
+
+        // 提取所有人物名称
+        const personNames = new Set();
+
+        // 从头像、进度和声明匹配中提取人物名
+        [
+          { matches: avatarMatches, prefix: 'person-avatar-' },
+          { matches: progressMatches, prefix: 'person-progress-' },
+          { matches: statementMatches, prefix: 'person-statement-' }
+        ].forEach(({ matches, prefix }) => {
+          matches.forEach(match => {
+            const personName = match.replace(prefix, '');
+            if (personName) {
+              personNames.add(personName);
+            }
+          });
+        });
+
+        console.log('找到的所有人物名称:', Array.from(personNames));
+
+        // 为每个人物收集数据
+        personNames.forEach(personName => {
+          // 提取头像URL
+          let avatarUrl = '';
+          const avatarElement = $(`div:contains("person-avatar-${personName}")`);
+          if (avatarElement.length > 0) {
+            const text = avatarElement.text().trim();
+            if (text.includes('https://') && text.includes('.jpg')) {
+              avatarUrl = text;
+            }
+          }
+
+          // 提取进度
+          let progress = 0;
+          const progressElement = $(`div:contains("person-progress-${personName}")`);
+          if (progressElement.length > 0) {
+            const text = progressElement.text().trim();
+            const match = text.match(/-?\d+/);
+            if (match) {
+              progress = parseInt(match[0], 10);
+            }
+          }
+
+          // 提取声明
+          let statement = '';
+          const statementElement = $(`div:contains("person-statement-${personName}")`);
+          if (statementElement.length > 0) {
+            // 获取元素文本内容
+            const text = statementElement.text().trim();
+            // 移除person-statement-personName前缀
+            statement = text.replace(`person-statement-${personName}`, '').trim();
+          }
+
+          // 确保有有效的头像URL
+          if (!avatarUrl || !avatarUrl.includes('http')) {
+            avatarUrl = `https://pub-07f3e1b810bb45079240dae84aaadd3e.r2.dev/profile/${personName}.jpg`;
+          }
+
+          // 生成唯一ID
+          const id = `PSB-ID-${Math.floor(1000 + Math.random() * 9000)}`;
+
+          // 添加到监控数据
+          monitorData.push({
+            id: id,
+            name: personName,
+            progress: progress,
+            avatar: avatarUrl,
+            statement: statement || "无可用数据..."
+          });
+        });
+
+        // 如果上面的方法没有找到数据，尝试其他方法
+        if (monitorData.length === 0) {
+          // 创建存储人物数据的对象
+          const personData = {};
+
+          // 查找所有div元素并处理它们的内容
+          $('div').each(function () {
+            const $this = $(this);
+            const className = $this.attr('class') || '';
+            const text = $this.text().trim();
+
+            // 处理包含person-avatar的元素
+            if (className.includes('person-avatar-') || text.includes('person-avatar-')) {
+              let personName = '';
+
+              // 从类名中提取人物名
+              if (className.includes('person-avatar-')) {
+                const match = className.match(/person-avatar-(.+)/);
+                if (match && match[1]) {
+                  personName = match[1];
+                }
+              }
+              // 如果无法从类名提取，尝试从文本内容提取
+              else if (text.includes('person-avatar-')) {
+                const match = text.match(/person-avatar-(\S+)/);
+                if (match && match[1]) {
+                  personName = match[1];
+                }
+              }
+
+              if (personName) {
+                // 初始化该人物的数据
+                if (!personData[personName]) {
+                  personData[personName] = {
+                    name: personName,
+                    avatar: '',
+                    progress: 0,
+                    statement: ''
+                  };
+                }
+
+                // 提取URL
+                if (text.includes('http') && text.includes('.jpg')) {
+                  personData[personName].avatar = text;
+                }
+              }
+            }
+
+            // 处理包含person-progress的元素
+            else if (className.includes('person-progress-') || text.includes('person-progress-')) {
+              let personName = '';
+
+              // 从类名中提取人物名
+              if (className.includes('person-progress-')) {
+                const match = className.match(/person-progress-(.+)/);
+                if (match && match[1]) {
+                  personName = match[1];
+                }
+              }
+              // 如果无法从类名提取，尝试从文本内容提取
+              else if (text.includes('person-progress-')) {
+                const match = text.match(/person-progress-(\S+)/);
+                if (match && match[1]) {
+                  personName = match[1];
+                }
+              }
+
+              if (personName) {
+                // 初始化该人物的数据
+                if (!personData[personName]) {
+                  personData[personName] = {
+                    name: personName,
+                    avatar: '',
+                    progress: 0,
+                    statement: ''
+                  };
+                }
+
+                // 提取进度值
+                const progressMatch = text.match(/-?\d+/);
+                if (progressMatch) {
+                  personData[personName].progress = parseInt(progressMatch[0], 10);
+                }
+              }
+            }
+
+            // 处理包含person-statement的元素
+            else if (className.includes('person-statement-') || text.includes('person-statement-')) {
+              let personName = '';
+
+              // 从类名中提取人物名
+              if (className.includes('person-statement-')) {
+                const match = className.match(/person-statement-(.+)/);
+                if (match && match[1]) {
+                  personName = match[1];
+                }
+              }
+              // 如果无法从类名提取，尝试从文本内容提取
+              else if (text.includes('person-statement-')) {
+                const match = text.match(/person-statement-(\S+)/);
+                if (match && match[1]) {
+                  personName = match[1];
+                }
+              }
+
+              if (personName) {
+                // 初始化该人物的数据
+                if (!personData[personName]) {
+                  personData[personName] = {
+                    name: personName,
+                    avatar: '',
+                    progress: 0,
+                    statement: ''
+                  };
+                }
+
+                // 提取声明内容
+                if (text.startsWith('person-statement-')) {
+                  // 找到第一个空格之后的内容作为声明
+                  const parts = text.split(' ');
+                  if (parts.length > 1) {
+                    // 删除第一个元素（人物标识符）
+                    parts.shift();
+                    // 剩余的部分作为声明
+                    personData[personName].statement = parts.join(' ');
+                  }
+                } else {
+                  personData[personName].statement = text;
+                }
+              }
+            }
+          });
+
+          // 将人物数据转换为数组
+          for (const personName in personData) {
+            const person = personData[personName];
+
+            // 确保有有效的头像URL
+            if (!person.avatar || !person.avatar.includes('http')) {
+              person.avatar = `https://pub-07f3e1b810bb45079240dae84aaadd3e.r2.dev/profile/${personName}.jpg`;
+            }
+
+            // 生成唯一ID
+            const id = `PSB-ID-${Math.floor(1000 + Math.random() * 9000)}`;
+
+            // 添加到监控数据
+            monitorData.push({
+              id: id,
+              name: person.name,
+              progress: person.progress,
+              avatar: person.avatar,
+              statement: person.statement || "无可用数据..."
+            });
+          }
+        }
+      }
+    } catch (error) {
+      console.error('获取监控数据时出错:', error);
+    }
+
+    // 如果没有找到数据，使用默认数据
+    if (monitorData.length === 0) {
+      console.log('未找到有效的监控数据，使用默认数据');
+      monitorData.push(
+        {
+          id: "PSB-ID-2201",
+          name: "裴矜予",
+          progress: -30,
+          avatar: "https://pub-07f3e1b810bb45079240dae84aaadd3e.r2.dev/profile/裴矜予.jpg",
+          statement: "最近工作很忙，没什么时间休息..."
+        },
+        {
+          id: "PSB-ID-1835",
+          name: "林修远",
+          progress: -20,
+          avatar: "https://pub-07f3e1b810bb45079240dae84aaadd3e.r2.dev/profile/林修远.jpg",
+          statement: "在研究一个新的课题，很有趣..."
+        },
+        {
+          id: "PSB-ID-3107",
+          name: "石一",
+          progress: 80,
+          avatar: "https://pub-07f3e1b810bb45079240dae84aaadd3e.r2.dev/profile/石一.jpg",
+          statement: "这把牌运气不错，再来一局..."
+        },
+        {
+          id: "PSB-ID-0925",
+          name: "陈临川",
+          progress: 50,
+          avatar: "https://pub-07f3e1b810bb45079240dae84aaadd3e.r2.dev/profile/陈临川.jpg",
+          statement: "今天的手术很成功，病人恢复得不错..."
+        },
+        {
+          id: "PSB-ID-1540",
+          name: "吴浩明",
+          progress: -40,
+          avatar: "https://pub-07f3e1b810bb45079240dae84aaadd3e.r2.dev/profile/吴浩明.jpg",
+          statement: "宿舍的WiFi怎么又断了..."
+        }
+      );
+    }
+
+    // 清空现有卡片
+    $('.monitor-cards').empty();
+
+    // 创建人物卡片
+    monitorData.forEach((person, index) => {
+      // 将-50到100的范围映射到0-100%
+      const normalizedProgress = ((person.progress + 50) / 150 * 100).toFixed(1);
+      const progressColor = person.progress >= 0 ? 'rgba(0, 210, 255, 0.9)' : 'rgba(255, 70, 70, 0.9)';
+
+      // 为渐进式动画添加延迟
+      const delay = index * 150;
+
+      const card = $(`
+        <div class="monitor-card" style="animation-delay: ${delay}ms;">
+          <div class="monitor-card-avatar">
+            <img src="${person.avatar}" alt="${person.name}">
+          </div>
+          <div class="monitor-card-info" data-id="${person.id}">
+            <div class="monitor-card-name">${person.name}</div>
+            <div class="monitor-card-progress">
+              <div class="progress-bar">
+                <div class="progress-fill" style="width: 0%;"></div>
+              </div>
+              <span class="progress-text" style="color: ${progressColor};">${person.progress}</span>
+            </div>
+            <div class="monitor-card-statement">${person.statement}</div>
+          </div>
+        </div>
+      `);
+
+      // 添加卡片到容器
+      $('.monitor-cards').append(card);
+
+      // 延迟设置进度条宽度以实现动画效果
+      setTimeout(function () {
+        card.find('.progress-fill').css({
+          'width': `${normalizedProgress}%`,
+          'background': person.progress >= 0 ?
+            'linear-gradient(90deg, rgba(0, 210, 255, 0.7), rgba(0, 140, 255, 0.9))' :
+            'linear-gradient(90deg, rgba(255, 70, 70, 0.7), rgba(255, 40, 40, 0.9))'
+        });
+      }, delay + 300);
+    });
+
+    console.log(`已更新${monitorData.length}个监控数据`);
+
+    // 显示更新提示
+    if ($('#monitor_interface').is(':visible')) {
+      const updateToast = $(`<div class="monitor-toast">已同步${monitorData.length}条监控数据</div>`);
+      $('.phone-content').append(updateToast);
+
+      setTimeout(function () {
+        updateToast.fadeOut(500, function () {
+          $(this).remove();
+        });
+      }, 2000);
+    }
+  }
+
+  // 专门处理直接传入的HTML格式
+  function parseCustomHTMLFormat() {
+    console.log('尝试解析自定义HTML格式...');
+
+    // 从页面中查找特定的HTML内容
+    const results = [];
+    const personData = {};
+
+    // 查找所有可能包含人物数据的div元素
+    $('div').each(function () {
+      const content = $(this).text().trim();
+
+      // 忽略空内容
+      if (!content) return;
+
+      // 检查是否是头像元素
+      if (content.includes('person-avatar-')) {
+        const match = content.match(/person-avatar-(\S+)/);
+        if (match && match[1]) {
+          const personName = match[1];
+
+          // 如果还没有该人物的数据，创建一个新对象
+          if (!personData[personName]) {
+            personData[personName] = {
+              name: personName,
+              avatar: '',
+              progress: 0,
+              statement: ''
+            };
+          }
+
+          // 提取URL
+          const urlMatch = content.match(/(https:\/\/[^\s]+\.jpg)/);
+          if (urlMatch && urlMatch[1]) {
+            personData[personName].avatar = urlMatch[1];
+          } else {
+            // 如果整个内容看起来像URL，直接使用它
+            if (content.includes('https://') && content.includes('.jpg')) {
+              personData[personName].avatar = content;
+            }
+          }
+        }
+      }
+
+      // 检查是否是进度元素
+      else if (content.includes('person-progress-')) {
+        const match = content.match(/person-progress-(\S+)/);
+        if (match && match[1]) {
+          const personName = match[1];
+
+          // 如果还没有该人物的数据，创建一个新对象
+          if (!personData[personName]) {
+            personData[personName] = {
+              name: personName,
+              avatar: '',
+              progress: 0,
+              statement: ''
+            };
+          }
+
+          // 提取进度值
+          const progressMatch = content.match(/-?\d+/);
+          if (progressMatch) {
+            personData[personName].progress = parseInt(progressMatch[0], 10);
+          }
+        }
+      }
+
+      // 检查是否是声明元素
+      else if (content.includes('person-statement-')) {
+        const match = content.match(/person-statement-(\S+)/);
+        if (match && match[1]) {
+          const personName = match[1];
+
+          // 如果还没有该人物的数据，创建一个新对象
+          if (!personData[personName]) {
+            personData[personName] = {
+              name: personName,
+              avatar: '',
+              progress: 0,
+              statement: ''
+            };
+          }
+
+          // 提取声明内容
+          let statement = content.replace(`person-statement-${personName}`, '').trim();
+
+          // 如果仍然有内容，使用它
+          if (statement) {
+            personData[personName].statement = statement;
+          }
+        }
+      }
+    });
+
+    console.log('从自定义HTML解析的人物数据:', personData);
+
+    // 将人物数据转换为数组
+    for (const personName in personData) {
+      const person = personData[personName];
+
+      // 确保有有效的头像URL
+      if (!person.avatar || !person.avatar.includes('http')) {
+        person.avatar = `https://pub-07f3e1b810bb45079240dae84aaadd3e.r2.dev/profile/${personName}.jpg`;
+      }
+
+      // 生成唯一ID
+      const id = `PSB-ID-${Math.floor(1000 + Math.random() * 9000)}`;
+
+      // 添加到结果数组
+      results.push({
+        id: id,
+        name: person.name,
+        progress: person.progress,
+        avatar: person.avatar,
+        statement: person.statement || "无可用数据..."
+      });
+    }
+
+    return results;
+  }
+
 })();
