@@ -2731,258 +2731,167 @@
     let monitorData = [];
 
     try {
-      // 尝试使用特定的解析函数处理页面内容
-      const parsedData = parseCustomHTMLFormat();
+      // 使用多种选择器查找数据
+      const dataSelectors = [
+        '[class*="person-progress-"]',
+        '[class*="progress-person-"]',
+        '[class*="personprogress-"]',
+        '[class^="person-"][class*="-progress"]',
+        '[data-progress]'
+      ];
 
-      if (parsedData && parsedData.length > 0) {
-        console.log('成功从HTML内容解析数据:', parsedData);
-        monitorData = parsedData;
-      } else {
-        console.log('无法从HTML内容解析数据，尝试其他方法...');
+      let progressElements = $();
+      let dataFoundBy = {};
 
-        // 在页面中查找所有符合模式的人物数据
-        console.log('尝试直接解析页面中的人物数据...');
+      // 使用多种选择器尝试查找数据
+      dataSelectors.forEach(selector => {
+        const found = $(selector);
+        if (found.length > 0) {
+          console.log(`使用选择器 ${selector} 找到 ${found.length} 个元素`);
+          dataFoundBy[selector] = found.length;
+          progressElements = progressElements.add(found);
+        }
+      });
 
-        // 先尝试直接解析页面文本内容
-        const bodyText = $('body').text();
+      console.log(`总共找到 ${progressElements.length} 个进度元素`);
 
-        // 从页面文本中提取所有person-avatar，person-progress和person-statement模式
-        const avatarMatches = bodyText.match(/person-avatar-(\S+)/g) || [];
-        const progressMatches = bodyText.match(/person-progress-(\S+)/g) || [];
-        const statementMatches = bodyText.match(/person-statement-(\S+)/g) || [];
+      // 尝试从SillyTavern聊天记录中获取数据
+      try {
+        if (typeof SillyTavern !== 'undefined' && typeof SillyTavern.getContext === 'function') {
+          const context = SillyTavern.getContext();
+          if (context && context.chat && Array.isArray(context.chat)) {
+            console.log(`找到聊天记录，共${context.chat.length}条消息`);
 
-        console.log('找到的头像匹配:', avatarMatches);
-        console.log('找到的进度匹配:', progressMatches);
-        console.log('找到的声明匹配:', statementMatches);
+            const $tempContainer = $('<div></div>');
 
-        // 提取所有人物名称
-        const personNames = new Set();
+            // 遍历聊天记录，从新到旧
+            for (let i = context.chat.length - 1; i >= 0; i--) {
+              const message = context.chat[i];
+              if (message && message.mes) {
+                $tempContainer.html(message.mes);
 
-        // 从头像、进度和声明匹配中提取人物名
-        [
-          { matches: avatarMatches, prefix: 'person-avatar-' },
-          { matches: progressMatches, prefix: 'person-progress-' },
-          { matches: statementMatches, prefix: 'person-statement-' }
-        ].forEach(({ matches, prefix }) => {
-          matches.forEach(match => {
-            const personName = match.replace(prefix, '');
-            if (personName) {
-              personNames.add(personName);
-            }
-          });
-        });
-
-        console.log('找到的所有人物名称:', Array.from(personNames));
-
-        // 为每个人物收集数据
-        personNames.forEach(personName => {
-          // 提取头像URL
-          let avatarUrl = '';
-          const avatarElement = $(`div:contains("person-avatar-${personName}")`);
-          if (avatarElement.length > 0) {
-            const text = avatarElement.text().trim();
-            if (text.includes('https://') && text.includes('.jpg')) {
-              avatarUrl = text;
-            }
-          }
-
-          // 提取进度
-          let progress = 0;
-          const progressElement = $(`div:contains("person-progress-${personName}")`);
-          if (progressElement.length > 0) {
-            const text = progressElement.text().trim();
-            const match = text.match(/-?\d+/);
-            if (match) {
-              progress = parseInt(match[0], 10);
-            }
-          }
-
-          // 提取声明
-          let statement = '';
-          const statementElement = $(`div:contains("person-statement-${personName}")`);
-          if (statementElement.length > 0) {
-            // 获取元素文本内容
-            const text = statementElement.text().trim();
-            // 移除person-statement-personName前缀
-            statement = text.replace(`person-statement-${personName}`, '').trim();
-          }
-
-          // 确保有有效的头像URL
-          if (!avatarUrl || !avatarUrl.includes('http')) {
-            avatarUrl = `https://pub-07f3e1b810bb45079240dae84aaadd3e.r2.dev/profile/${personName}.jpg`;
-          }
-
-          // 生成唯一ID
-          const id = `PSB-ID-${Math.floor(1000 + Math.random() * 9000)}`;
-
-          // 添加到监控数据
-          monitorData.push({
-            id: id,
-            name: personName,
-            progress: progress,
-            avatar: avatarUrl,
-            statement: statement || "无可用数据..."
-          });
-        });
-
-        // 如果上面的方法没有找到数据，尝试其他方法
-        if (monitorData.length === 0) {
-          // 创建存储人物数据的对象
-          const personData = {};
-
-          // 查找所有div元素并处理它们的内容
-          $('div').each(function () {
-            const $this = $(this);
-            const className = $this.attr('class') || '';
-            const text = $this.text().trim();
-
-            // 处理包含person-avatar的元素
-            if (className.includes('person-avatar-') || text.includes('person-avatar-')) {
-              let personName = '';
-
-              // 从类名中提取人物名
-              if (className.includes('person-avatar-')) {
-                const match = className.match(/person-avatar-(.+)/);
-                if (match && match[1]) {
-                  personName = match[1];
-                }
-              }
-              // 如果无法从类名提取，尝试从文本内容提取
-              else if (text.includes('person-avatar-')) {
-                const match = text.match(/person-avatar-(\S+)/);
-                if (match && match[1]) {
-                  personName = match[1];
-                }
-              }
-
-              if (personName) {
-                // 初始化该人物的数据
-                if (!personData[personName]) {
-                  personData[personName] = {
-                    name: personName,
-                    avatar: '',
-                    progress: 0,
-                    statement: ''
-                  };
-                }
-
-                // 提取URL
-                if (text.includes('http') && text.includes('.jpg')) {
-                  personData[personName].avatar = text;
-                }
-              }
-            }
-
-            // 处理包含person-progress的元素
-            else if (className.includes('person-progress-') || text.includes('person-progress-')) {
-              let personName = '';
-
-              // 从类名中提取人物名
-              if (className.includes('person-progress-')) {
-                const match = className.match(/person-progress-(.+)/);
-                if (match && match[1]) {
-                  personName = match[1];
-                }
-              }
-              // 如果无法从类名提取，尝试从文本内容提取
-              else if (text.includes('person-progress-')) {
-                const match = text.match(/person-progress-(\S+)/);
-                if (match && match[1]) {
-                  personName = match[1];
-                }
-              }
-
-              if (personName) {
-                // 初始化该人物的数据
-                if (!personData[personName]) {
-                  personData[personName] = {
-                    name: personName,
-                    avatar: '',
-                    progress: 0,
-                    statement: ''
-                  };
-                }
-
-                // 提取进度值
-                const progressMatch = text.match(/-?\d+/);
-                if (progressMatch) {
-                  personData[personName].progress = parseInt(progressMatch[0], 10);
-                }
-              }
-            }
-
-            // 处理包含person-statement的元素
-            else if (className.includes('person-statement-') || text.includes('person-statement-')) {
-              let personName = '';
-
-              // 从类名中提取人物名
-              if (className.includes('person-statement-')) {
-                const match = className.match(/person-statement-(.+)/);
-                if (match && match[1]) {
-                  personName = match[1];
-                }
-              }
-              // 如果无法从类名提取，尝试从文本内容提取
-              else if (text.includes('person-statement-')) {
-                const match = text.match(/person-statement-(\S+)/);
-                if (match && match[1]) {
-                  personName = match[1];
-                }
-              }
-
-              if (personName) {
-                // 初始化该人物的数据
-                if (!personData[personName]) {
-                  personData[personName] = {
-                    name: personName,
-                    avatar: '',
-                    progress: 0,
-                    statement: ''
-                  };
-                }
-
-                // 提取声明内容
-                if (text.startsWith('person-statement-')) {
-                  // 找到第一个空格之后的内容作为声明
-                  const parts = text.split(' ');
-                  if (parts.length > 1) {
-                    // 删除第一个元素（人物标识符）
-                    parts.shift();
-                    // 剩余的部分作为声明
-                    personData[personName].statement = parts.join(' ');
+                // 在临时容器中查找数据
+                dataSelectors.forEach(selector => {
+                  const found = $tempContainer.find(selector);
+                  if (found.length > 0) {
+                    console.log(`在消息#${i}中使用选择器${selector}找到${found.length}个元素`);
+                    progressElements = progressElements.add(found.clone());
                   }
-                } else {
-                  personData[personName].statement = text;
-                }
+                });
               }
             }
-          });
-
-          // 将人物数据转换为数组
-          for (const personName in personData) {
-            const person = personData[personName];
-
-            // 确保有有效的头像URL
-            if (!person.avatar || !person.avatar.includes('http')) {
-              person.avatar = `https://pub-07f3e1b810bb45079240dae84aaadd3e.r2.dev/profile/${personName}.jpg`;
-            }
-
-            // 生成唯一ID
-            const id = `PSB-ID-${Math.floor(1000 + Math.random() * 9000)}`;
-
-            // 添加到监控数据
-            monitorData.push({
-              id: id,
-              name: person.name,
-              progress: person.progress,
-              avatar: person.avatar,
-              statement: person.statement || "无可用数据..."
-            });
           }
         }
+      } catch (error) {
+        console.error('从聊天记录获取数据时出错:', error);
       }
+
+      // 创建人物数据映射
+      const personData = {};
+
+      // 遍历所有进度元素
+      progressElements.each(function () {
+        const classes = $(this).attr('class') || '';
+        let name = '';
+        let progress = 0;
+        let statement = '';
+        let avatar = 'https://pub-07f3e1b810bb45079240dae84aaadd3e.r2.dev/profile/defult.jpg';
+
+        // 从多种格式中提取名称
+        const classNames = classes.split(' ');
+        for (let cls of classNames) {
+          if (cls.startsWith('person-progress-')) {
+            name = cls.replace('person-progress-', '');
+            break;
+          } else if (cls.startsWith('progress-person-')) {
+            name = cls.replace('progress-person-', '');
+            break;
+          } else if (cls.startsWith('personprogress-')) {
+            name = cls.replace('personprogress-', '');
+            break;
+          }
+        }
+
+        // 从data属性中提取名称
+        if (!name && $(this).attr('data-person')) {
+          name = $(this).attr('data-person');
+        }
+
+        // 如果找到了名称，提取进度
+        if (name) {
+          progress = parseInt($(this).text().trim() || $(this).attr('data-progress') || '0', 10);
+          console.log(`找到人物: ${name}, 进度: ${progress}`);
+
+          // 为这个名称查找头像和声明
+          const escapedName = CSS.escape(name);
+          const avatarSelectors = [
+            `.person-avatar-${escapedName}`,
+            `.avatar-person-${escapedName}`,
+            `.personavatar-${escapedName}`,
+            `[data-avatar][data-person="${name}"]`
+          ];
+
+          const statementSelectors = [
+            `.person-statement-${escapedName}`,
+            `.statement-person-${escapedName}`,
+            `.personstatement-${escapedName}`,
+            `[data-statement][data-person="${name}"]`
+          ];
+
+          // 查找头像
+          for (const selector of avatarSelectors) {
+            const found = $(selector);
+            if (found.length > 0) {
+              console.log(`使用选择器 ${selector} 找到头像元素`);
+              const avatarUrl = found.attr('src') || found.attr('data-avatar') || found.text().trim();
+              if (avatarUrl && avatarUrl.includes('http')) {
+                avatar = avatarUrl;
+                break;
+              }
+            }
+          }
+
+          // 查找声明
+          for (const selector of statementSelectors) {
+            const found = $(selector);
+            if (found.length > 0) {
+              console.log(`使用选择器 ${selector} 找到声明元素`);
+              statement = found.text().trim() || found.attr('data-statement') || '';
+              break;
+            }
+          }
+
+          // 确保头像URL存在
+          if (!avatar || !avatar.includes('http')) {
+            avatar = `https://pub-07f3e1b810bb45079240dae84aaadd3e.r2.dev/profile/${name}.jpg`;
+          }
+
+          // 添加到人物数据
+          personData[name] = {
+            name: name,
+            progress: progress,
+            avatar: avatar,
+            statement: statement || "无可用数据..."
+          };
+        }
+      });
+
+      // 将收集到的数据转换为监控数据数组
+      for (const name in personData) {
+        const person = personData[name];
+        const id = `PSB-ID-${Math.floor(1000 + Math.random() * 9000)}`;
+        monitorData.push({
+          id: id,
+          name: person.name,
+          progress: person.progress,
+          avatar: person.avatar,
+          statement: person.statement
+        });
+      }
+
+      console.log(`成功收集到${monitorData.length}个人物数据`);
     } catch (error) {
-      console.error('获取监控数据时出错:', error);
+      console.error('处理监控数据时出错:', error);
     }
 
     // 如果没有找到数据，使用默认数据
@@ -3084,79 +2993,6 @@
         });
       }, 2000);
     }
-  }
-
-  // 专门处理直接传入的HTML格式
-  function parseCustomHTMLFormat() {
-    console.log('开始解析自定义HTML格式...');
-    const results = [];
-    const personData = {};
-
-    // 查找所有div元素
-    $('div').each(function () {
-      const $div = $(this);
-      const className = $div.attr('class') || '';
-      const content = $div.text().trim();
-
-      // 从类名中提取人名和数据类型
-      let match;
-      if (className.includes('person-')) {
-        if (className.includes('person-avatar-')) {
-          match = className.match(/person-avatar-(.+)/);
-          if (match) {
-            const name = match[1];
-            if (!personData[name]) {
-              personData[name] = { name, avatar: '', progress: 0, statement: '' };
-            }
-            personData[name].avatar = content;
-          }
-        } else if (className.includes('person-progress-')) {
-          match = className.match(/person-progress-(.+)/);
-          if (match) {
-            const name = match[1];
-            if (!personData[name]) {
-              personData[name] = { name, avatar: '', progress: 0, statement: '' };
-            }
-            const progressValue = parseInt(content, 10);
-            if (!isNaN(progressValue)) {
-              personData[name].progress = progressValue;
-            }
-          }
-        } else if (className.includes('person-statement-')) {
-          match = className.match(/person-statement-(.+)/);
-          if (match) {
-            const name = match[1];
-            if (!personData[name]) {
-              personData[name] = { name, avatar: '', progress: 0, statement: '' };
-            }
-            personData[name].statement = content;
-          }
-        }
-      }
-    });
-
-    // 将收集到的数据转换为结果数组
-    for (const name in personData) {
-      const person = personData[name];
-      // 生成唯一ID
-      const id = `PSB-ID-${Math.floor(1000 + Math.random() * 9000)}`;
-
-      // 确保头像URL存在
-      if (!person.avatar || !person.avatar.includes('http')) {
-        person.avatar = `https://pub-07f3e1b810bb45079240dae84aaadd3e.r2.dev/profile/${name}.jpg`;
-      }
-
-      results.push({
-        id,
-        name: person.name,
-        progress: person.progress,
-        avatar: person.avatar,
-        statement: person.statement || "无可用数据..."
-      });
-    }
-
-    console.log('解析完成，找到的数据：', results);
-    return results;
   }
 
 })();
