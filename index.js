@@ -2728,229 +2728,149 @@
   // 更新监控数据
   function updateMonitorData() {
     console.log('开始更新监控数据...');
-    let monitorData = [];
 
-    try {
-      // 使用多种选择器查找数据
-      const dataSelectors = [
-        '[class*="person-progress-"]',
-        '[class*="progress-person-"]',
-        '[class*="personprogress-"]',
-        '[class^="person-"][class*="-progress"]',
-        '[data-progress]'
-      ];
+    // 存储找到的所有人物数据
+    const personData = {};
 
-      let progressElements = $();
-      let dataFoundBy = {};
+    // 首先从DOM中查找进度数据
+    const progressElements = $('[class*="person-progress-"]');
+    console.log(`找到 ${progressElements.length} 个进度元素`);
 
-      // 使用多种选择器尝试查找数据
-      dataSelectors.forEach(selector => {
-        const found = $(selector);
-        if (found.length > 0) {
-          console.log(`使用选择器 ${selector} 找到 ${found.length} 个元素`);
-          dataFoundBy[selector] = found.length;
-          progressElements = progressElements.add(found);
-        }
-      });
+    // 处理找到的进度数据
+    progressElements.each(function () {
+      const classes = $(this).attr('class') || '';
+      let name = '';
 
-      console.log(`总共找到 ${progressElements.length} 个进度元素`);
+      // 从class名称中提取人物名称
+      const match = classes.match(/person-progress-([^\\s]+)/);
+      if (match) {
+        name = match[1];
+        console.log(`找到人物名称: ${name}`);
 
-      // 尝试从SillyTavern聊天记录中获取数据
-      try {
-        if (typeof SillyTavern !== 'undefined' && typeof SillyTavern.getContext === 'function') {
-          const context = SillyTavern.getContext();
-          if (context && context.chat && Array.isArray(context.chat)) {
-            console.log(`找到聊天记录，共${context.chat.length}条消息`);
+        // 获取进度值
+        const progress = parseInt($(this).text().trim(), 10);
+        console.log(`${name}的进度值: ${progress}`);
 
-            const $tempContainer = $('<div></div>');
+        // 查找头像 - 直接使用完整的选择器
+        const avatarSelector = `.person-avatar-${name}`;
+        const avatarElement = $(avatarSelector);
+        let avatar = `https://pub-07f3e1b810bb45079240dae84aaadd3e.r2.dev/profile/${name}.jpg`;
 
-            // 遍历聊天记录，从新到旧
-            for (let i = context.chat.length - 1; i >= 0; i--) {
-              const message = context.chat[i];
-              if (message && message.mes) {
-                $tempContainer.html(message.mes);
-
-                // 在临时容器中查找数据
-                dataSelectors.forEach(selector => {
-                  const found = $tempContainer.find(selector);
-                  if (found.length > 0) {
-                    console.log(`在消息#${i}中使用选择器${selector}找到${found.length}个元素`);
-                    progressElements = progressElements.add(found.clone());
-                  }
-                });
-              }
-            }
+        if (avatarElement.length > 0) {
+          const avatarUrl = avatarElement.text().trim();
+          if (avatarUrl && avatarUrl.includes('http')) {
+            avatar = avatarUrl;
+            console.log(`找到${name}的头像URL: ${avatar}`);
           }
-        }
-      } catch (error) {
-        console.error('从聊天记录获取数据时出错:', error);
-      }
-
-      // 创建人物数据映射
-      const personData = {};
-
-      // 遍历所有进度元素
-      progressElements.each(function () {
-        const classes = $(this).attr('class') || '';
-        let name = '';
-        let progress = 0;
-        let statement = '';
-        let avatar = 'https://pub-07f3e1b810bb45079240dae84aaadd3e.r2.dev/profile/defult.jpg';
-
-        // 从多种格式中提取名称
-        const classNames = classes.split(' ');
-        for (let cls of classNames) {
-          if (cls.startsWith('person-progress-')) {
-            name = cls.replace('person-progress-', '');
-            break;
-          } else if (cls.startsWith('progress-person-')) {
-            name = cls.replace('progress-person-', '');
-            break;
-          } else if (cls.startsWith('personprogress-')) {
-            name = cls.replace('personprogress-', '');
-            break;
-          }
+        } else {
+          console.log(`使用默认头像URL: ${avatar}`);
         }
 
-        // 从data属性中提取名称
-        if (!name && $(this).attr('data-person')) {
-          name = $(this).attr('data-person');
-        }
+        // 查找声明 - 使用多种选择器
+        const statementSelectors = [
+          `.person-statement-${name}`,
+          `[class*="person-statement-${name}"]`,
+          `[data-statement][data-person="${name}"]`
+        ];
 
-        // 如果找到了名称，提取进度
-        if (name) {
-          progress = parseInt($(this).text().trim() || $(this).attr('data-progress') || '0', 10);
-          console.log(`找到人物: ${name}, 进度: ${progress}`);
+        let statement = '无可用数据...';
+        let foundStatement = false;
 
-          // 为这个名称查找头像和声明
-          const escapedName = CSS.escape(name);
-
-          // 查找头像
-          const avatarElement = $(`.person-avatar-${escapedName}`);
-          if (avatarElement.length > 0) {
-            const avatarText = avatarElement.text().trim();
-            if (avatarText && avatarText.includes('http')) {
-              avatar = avatarText;
-              console.log(`找到${name}的头像URL:`, avatar);
-            }
-          }
-
-          // 查找声明
-          const statementElement = $(`.person-statement-${escapedName}`);
+        // 首先在DOM中查找
+        for (const selector of statementSelectors) {
+          const statementElement = $(selector);
           if (statementElement.length > 0) {
             statement = statementElement.text().trim();
-            console.log(`找到${name}的声明:`, statement);
+            console.log(`在DOM中找到${name}的声明: ${statement}`);
+            foundStatement = true;
+            break;
           }
-
-          // 确保头像URL存在
-          if (!avatar || !avatar.includes('http')) {
-            avatar = `https://pub-07f3e1b810bb45079240dae84aaadd3e.r2.dev/profile/${name}.jpg`;
-          }
-
-          // 添加到人物数据
-          personData[name] = {
-            name: name,
-            progress: progress,
-            avatar: avatar,
-            statement: statement || "无可用数据..."
-          };
         }
-      });
 
-      // 将收集到的数据转换为监控数据数组
-      for (const name in personData) {
-        const person = personData[name];
-        const id = `PSB-ID-${Math.floor(1000 + Math.random() * 9000)}`;
-        monitorData.push({
-          id: id,
-          name: person.name,
-          progress: person.progress,
-          avatar: person.avatar,
-          statement: person.statement
-        });
+        // 如果在DOM中没找到，尝试从聊天记录中查找
+        if (!foundStatement && typeof SillyTavern !== 'undefined' && typeof SillyTavern.getContext === 'function') {
+          try {
+            const context = SillyTavern.getContext();
+            if (context && context.chat && Array.isArray(context.chat)) {
+              const $tempContainer = $('<div></div>');
+
+              // 从新到旧遍历消息
+              for (let i = context.chat.length - 1; i >= 0 && !foundStatement; i--) {
+                const message = context.chat[i];
+                if (message && message.mes) {
+                  $tempContainer.html(message.mes);
+
+                  // 尝试所有声明选择器
+                  for (const selector of statementSelectors) {
+                    const found = $tempContainer.find(selector);
+                    if (found.length > 0) {
+                      statement = found.first().text().trim();
+                      console.log(`在聊天记录#${i}中找到${name}的声明: ${statement}`);
+                      foundStatement = true;
+                      break;
+                    }
+                  }
+                }
+              }
+            }
+          } catch (error) {
+            console.error(`查找${name}的声明时出错:`, error);
+          }
+        }
+
+        // 添加到人物数据
+        personData[name] = {
+          name: name,
+          progress: progress,
+          avatar: avatar,
+          statement: statement
+        };
+
+        console.log(`已添加${name}的完整数据:`, personData[name]);
       }
+    });
 
-      console.log(`成功收集到${monitorData.length}个人物数据`);
-    } catch (error) {
-      console.error('处理监控数据时出错:', error);
-    }
+    // 更新监控卡片
+    updateMonitorCards(personData);
+  }
 
-    // 如果没有找到数据，使用默认数据
-    if (monitorData.length === 0) {
-      console.log('未找到有效的监控数据，使用默认数据');
-      monitorData.push(
-        {
-          id: "PSB-ID-2201",
-          name: "裴矜予",
-          progress: -30,
-          avatar: "https://pub-07f3e1b810bb45079240dae84aaadd3e.r2.dev/profile/裴矜予.jpg",
-          statement: "最近工作很忙，没什么时间休息..."
-        },
-        {
-          id: "PSB-ID-1835",
-          name: "林修远",
-          progress: -20,
-          avatar: "https://pub-07f3e1b810bb45079240dae84aaadd3e.r2.dev/profile/林修远.jpg",
-          statement: "在研究一个新的课题，很有趣..."
-        },
-        {
-          id: "PSB-ID-3107",
-          name: "石一",
-          progress: 80,
-          avatar: "https://pub-07f3e1b810bb45079240dae84aaadd3e.r2.dev/profile/石一.jpg",
-          statement: "这把牌运气不错，再来一局..."
-        },
-        {
-          id: "PSB-ID-0925",
-          name: "陈临川",
-          progress: 50,
-          avatar: "https://pub-07f3e1b810bb45079240dae84aaadd3e.r2.dev/profile/陈临川.jpg",
-          statement: "今天的手术很成功，病人恢复得不错..."
-        },
-        {
-          id: "PSB-ID-1540",
-          name: "吴浩明",
-          progress: -40,
-          avatar: "https://pub-07f3e1b810bb45079240dae84aaadd3e.r2.dev/profile/吴浩明.jpg",
-          statement: "宿舍的WiFi怎么又断了..."
-        }
-      );
-    }
+  // 更新监控卡片
+  function updateMonitorCards(personData) {
+    console.log('开始更新监控卡片，数据：', personData);
 
     // 清空现有卡片
     $('.monitor-cards').empty();
 
     // 创建人物卡片
-    monitorData.forEach((person, index) => {
-      // 将-50到100的范围映射到0-100%
+    Object.values(personData).forEach((person, index) => {
+      console.log('创建卡片：', person);
+
+      // 计算进度条显示
       const normalizedProgress = ((person.progress + 50) / 150 * 100).toFixed(1);
       const progressColor = person.progress >= 0 ? 'rgba(0, 210, 255, 0.9)' : 'rgba(255, 70, 70, 0.9)';
 
-      // 为渐进式动画添加延迟
-      const delay = index * 150;
-
       const card = $(`
-        <div class="monitor-card" style="animation-delay: ${delay}ms;">
-          <div class="monitor-card-avatar">
-            <img src="${person.avatar}" alt="${person.name}">
-          </div>
-          <div class="monitor-card-info" data-id="${person.id}">
-            <div class="monitor-card-name">${person.name}</div>
-            <div class="monitor-card-progress">
-              <div class="progress-bar">
-                <div class="progress-fill" style="width: 0%;"></div>
-              </div>
-              <span class="progress-text" style="color: ${progressColor};">${person.progress}</span>
+            <div class="monitor-card">
+                <div class="monitor-card-avatar">
+                    <img src="${person.avatar}" alt="${person.name}" onerror="this.src='https://pub-07f3e1b810bb45079240dae84aaadd3e.r2.dev/profile/defult.jpg'">
+                </div>
+                <div class="monitor-card-info">
+                    <div class="monitor-card-name">${person.name}</div>
+                    <div class="monitor-card-progress">
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: 0%;"></div>
+                        </div>
+                        <span class="progress-text" style="color: ${progressColor};">${person.progress}</span>
+                    </div>
+                    <div class="monitor-card-statement">${person.statement}</div>
+                </div>
             </div>
-            <div class="monitor-card-statement">${person.statement}</div>
-          </div>
-        </div>
-      `);
+        `);
 
-      // 添加卡片到容器
+      // 添加到容器
       $('.monitor-cards').append(card);
 
-      // 延迟设置进度条宽度以实现动画效果
+      // 添加进度条动画
       setTimeout(function () {
         card.find('.progress-fill').css({
           'width': `${normalizedProgress}%`,
@@ -2958,18 +2878,18 @@
             'linear-gradient(90deg, rgba(0, 210, 255, 0.7), rgba(0, 140, 255, 0.9))' :
             'linear-gradient(90deg, rgba(255, 70, 70, 0.7), rgba(255, 40, 40, 0.9))'
         });
-      }, delay + 300);
+      }, 300);
     });
 
-    console.log(`已更新${monitorData.length}个监控数据`);
+    console.log(`已更新${Object.keys(personData).length}个监控数据`);
 
     // 显示更新提示
     if ($('#monitor_interface').is(':visible')) {
-      const updateToast = $(`<div class="monitor-toast">已同步${monitorData.length}条监控数据</div>`);
+      const updateToast = $(`<div class="monitor-toast">已同步${Object.keys(personData).length}条监控数据</div>`);
       $('.phone-content').append(updateToast);
 
       setTimeout(function () {
-        updateToast.fadeOut(500, function () {
+        updateToast.fadeOut(300, function () {
           $(this).remove();
         });
       }, 2000);
