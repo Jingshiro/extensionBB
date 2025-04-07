@@ -2824,41 +2824,22 @@
 
           // 为这个名称查找头像和声明
           const escapedName = CSS.escape(name);
-          const avatarSelectors = [
-            `.person-avatar-${escapedName}`,
-            `.avatar-person-${escapedName}`,
-            `.personavatar-${escapedName}`,
-            `[data-avatar][data-person="${name}"]`
-          ];
-
-          const statementSelectors = [
-            `.person-statement-${escapedName}`,
-            `.statement-person-${escapedName}`,
-            `.personstatement-${escapedName}`,
-            `[data-statement][data-person="${name}"]`
-          ];
 
           // 查找头像
-          for (const selector of avatarSelectors) {
-            const found = $(selector);
-            if (found.length > 0) {
-              console.log(`使用选择器 ${selector} 找到头像元素`);
-              const avatarUrl = found.attr('src') || found.attr('data-avatar') || found.text().trim();
-              if (avatarUrl && avatarUrl.includes('http')) {
-                avatar = avatarUrl;
-                break;
-              }
+          const avatarElement = $(`.person-avatar-${escapedName}`);
+          if (avatarElement.length > 0) {
+            const avatarText = avatarElement.text().trim();
+            if (avatarText && avatarText.includes('http')) {
+              avatar = avatarText;
+              console.log(`找到${name}的头像URL:`, avatar);
             }
           }
 
           // 查找声明
-          for (const selector of statementSelectors) {
-            const found = $(selector);
-            if (found.length > 0) {
-              console.log(`使用选择器 ${selector} 找到声明元素`);
-              statement = found.text().trim() || found.attr('data-statement') || '';
-              break;
-            }
+          const statementElement = $(`.person-statement-${escapedName}`);
+          if (statementElement.length > 0) {
+            statement = statementElement.text().trim();
+            console.log(`找到${name}的声明:`, statement);
           }
 
           // 确保头像URL存在
