@@ -374,9 +374,14 @@
                 <div class="monitor-back-btn" id="monitor_back_btn">
                     <i class="fa-solid fa-chevron-left"></i>
                 </div>
-                <div class="monitor-title">实时嫌疑监控</div>
-                <div class="monitor-refresh-btn" id="monitor_refresh_btn">
-                    <i class="fa-solid fa-arrows-rotate"></i>
+                <div class="monitor-title">嫌疑监控</div>
+                <div class="monitor-refresh-menu" style="right: 50px;">
+                    <div class="monitor-refresh-btn" id="monitor_refresh_btn">
+                        <i class="fa-solid fa-arrows-rotate"></i>
+                    </div>
+                </div>
+                <div class="monitor-close-btn" id="monitor_close_btn">
+                    <i class="fa-solid fa-xmark"></i>
                 </div>
             </div>
             <div class="monitor-content">
@@ -2599,6 +2604,15 @@
     // 绑定返回按钮事件
     $('#monitor_back_btn').off('click').on('click', function () {
       console.log('返回按钮被点击');
+      // 隐藏监控界面
+      monitorInterface.hide();
+      // 显示手机主界面元素
+      mainElements.show();
+    });
+
+    // 绑定关闭按钮事件
+    $('#monitor_close_btn').off('click').on('click', function () {
+      console.log('关闭按钮被点击');
       // 隐藏监控界面
       monitorInterface.hide();
       // 显示手机主界面元素
