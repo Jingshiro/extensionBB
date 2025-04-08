@@ -2666,7 +2666,11 @@
 
   // 更新监控数据
   function updateMonitorData() {
-    console.log('开始更新监控数据...');
+    console.log('开始更新监控数据，当前环境:', {
+      isMobile: /Mobile|Android|iPhone/i.test(navigator.userAgent),
+      screenWidth: window.innerWidth,
+      screenHeight: window.innerHeight
+    });
 
     // 使用防抖，避免频繁更新
     if (window.monitorUpdateTimeout) {
@@ -2677,116 +2681,164 @@
       // 存储找到的所有人物数据
       const personData = {};
 
-      // 一次性获取所有需要的元素
-      const progressElements = $('[class*="person-progress-"]');
-      const avatarElements = $('[class*="person-avatar-"]');
-      const statementElements = $('[class*="person-statement-"]');
+      try {
+        // 一次性获取所有需要的元素
+        const progressElements = $('[class*="person-progress-"]');
+        const avatarElements = $('[class*="person-avatar-"]');
+        const statementElements = $('[class*="person-statement-"]');
 
-      // 创建映射以加快查找
-      const avatarMap = {};
-      const statementMap = {};
-
-      // 批量处理头像和声明数据
-      avatarElements.each(function () {
-        const classes = $(this).attr('class') || '';
-        const match = classes.match(/person-avatar-([^\\s]+)/);
-        if (match) {
-          avatarMap[match[1]] = $(this).text().trim();
-        }
-      });
-
-      statementElements.each(function () {
-        const classes = $(this).attr('class') || '';
-        const match = classes.match(/person-statement-([^\\s]+)/);
-        if (match) {
-          statementMap[match[1]] = $(this).text().trim();
-        }
-      });
-
-      // 处理进度数据
-      progressElements.each(function () {
-        const classes = $(this).attr('class') || '';
-        const match = classes.match(/person-progress-([^\\s]+)/);
-
-        if (match) {
-          const name = match[1];
-          const progress = parseInt($(this).text().trim(), 10);
-
-          // 使用映射快速查找头像和声明
-          const avatar = avatarMap[name] || `https://pub-07f3e1b810bb45079240dae84aaadd3e.r2.dev/profile/${name}.jpg`;
-          const statement = statementMap[name] || '无可用数据...';
-
-          // 添加到人物数据
-          personData[name] = {
-            name,
-            progress,
-            avatar,
-            statement
-          };
-        }
-      });
-
-      // 使用虚拟列表更新DOM
-      const $monitorCards = $('.monitor-cards');
-      const fragment = document.createDocumentFragment();
-      const batchSize = 5; // 每批处理5个卡片
-      const totalCards = Object.keys(personData).length;
-      let processedCards = 0;
-
-      function processBatch() {
-        const start = processedCards;
-        const end = Math.min(start + batchSize, totalCards);
-        const batch = Object.values(personData).slice(start, end);
-
-        batch.forEach(person => {
-          const normalizedProgress = ((person.progress + 50) / 150 * 100).toFixed(1);
-          const progressColor = person.progress >= 0 ? 'rgba(0, 210, 255, 0.9)' : 'rgba(255, 70, 70, 0.9)';
-
-          const card = document.createElement('div');
-          card.className = 'monitor-card';
-          card.innerHTML = `
-            <div class="monitor-card-avatar">
-              <img src="${person.avatar}" alt="${person.name}" onerror="this.src='https://pub-07f3e1b810bb45079240dae84aaadd3e.r2.dev/profile/defult.jpg'">
-            </div>
-            <div class="monitor-card-info">
-              <div class="monitor-card-name">${person.name}</div>
-              <div class="monitor-card-progress">
-                <div class="progress-bar">
-                  <div class="progress-fill" style="width: ${normalizedProgress}%"></div>
-                </div>
-                <span class="progress-text" style="color: ${progressColor}">${person.progress}</span>
-              </div>
-              <div class="monitor-card-statement">${person.statement}</div>
-            </div>`;
-
-          fragment.appendChild(card);
+        console.log('查找到的元素数量:', {
+          progress: progressElements.length,
+          avatar: avatarElements.length,
+          statement: statementElements.length
         });
 
-        processedCards = end;
+        // 创建映射以加快查找
+        const avatarMap = {};
+        const statementMap = {};
 
-        if (processedCards < totalCards) {
-          // 使用requestAnimationFrame处理下一批
-          requestAnimationFrame(processBatch);
-        } else {
-          // 所有卡片处理完成，一次性更新DOM
-          $monitorCards.empty().append(fragment);
+        // 批量处理头像和声明数据
+        avatarElements.each(function () {
+          const classes = $(this).attr('class') || '';
+          const match = classes.match(/person-avatar-([^\\s]+)/);
+          if (match) {
+            avatarMap[match[1]] = $(this).text().trim();
+          }
+        });
 
-          // 显示更新提示
-          if ($('#monitor_interface').is(':visible')) {
-            const updateToast = $(`<div class="monitor-toast">已同步${totalCards}条监控数据</div>`);
-            $('.phone-content').append(updateToast);
+        statementElements.each(function () {
+          const classes = $(this).attr('class') || '';
+          const match = classes.match(/person-statement-([^\\s]+)/);
+          if (match) {
+            statementMap[match[1]] = $(this).text().trim();
+          }
+        });
 
-            setTimeout(() => {
-              updateToast.fadeOut(300, function () {
-                $(this).remove();
-              });
-            }, 2000);
+        // 处理进度数据
+        progressElements.each(function () {
+          const classes = $(this).attr('class') || '';
+          const match = classes.match(/person-progress-([^\\s]+)/);
+
+          if (match) {
+            const name = match[1];
+            const progress = parseInt($(this).text().trim(), 10);
+
+            // 使用映射快速查找头像和声明
+            const avatar = avatarMap[name] || `https://pub-07f3e1b810bb45079240dae84aaadd3e.r2.dev/profile/${name}.jpg`;
+            const statement = statementMap[name] || '无可用数据...';
+
+            // 添加到人物数据
+            personData[name] = {
+              name,
+              progress,
+              avatar,
+              statement
+            };
+          }
+        });
+
+        console.log('处理人物数据:', {
+          totalPeople: Object.keys(personData).length,
+          sampleData: Object.values(personData)[0] || '无数据'
+        });
+
+        // 使用虚拟列表更新DOM
+        const $monitorCards = $('.monitor-cards');
+        const fragment = document.createDocumentFragment();
+        const batchSize = 5; // 每批处理5个卡片
+        const totalCards = Object.keys(personData).length;
+        let processedCards = 0;
+
+        console.log('准备开始批处理DOM更新:', {
+          batchSize,
+          totalCards,
+          monitorCardsExists: $monitorCards.length > 0,
+          monitorCardsVisible: $monitorCards.is(':visible')
+        });
+
+        function processBatch() {
+          const start = processedCards;
+          const end = Math.min(start + batchSize, totalCards);
+          const batch = Object.values(personData).slice(start, end);
+
+          console.log('开始处理新批次:', {
+            currentBatch: start + 1,
+            processedCards,
+            remainingCards: totalCards - processedCards,
+            batchSize: batch.length
+          });
+
+          batch.forEach(person => {
+            const normalizedProgress = ((person.progress + 50) / 150 * 100).toFixed(1);
+            const progressColor = person.progress >= 0 ? 'rgba(0, 210, 255, 0.9)' : 'rgba(255, 70, 70, 0.9)';
+
+            const card = document.createElement('div');
+            card.className = 'monitor-card';
+            card.innerHTML = `
+              <div class="monitor-card-avatar">
+                <img src="${person.avatar}" alt="${person.name}" onerror="this.src='https://pub-07f3e1b810bb45079240dae84aaadd3e.r2.dev/profile/defult.jpg'">
+              </div>
+              <div class="monitor-card-info">
+                <div class="monitor-card-name">${person.name}</div>
+                <div class="monitor-card-progress">
+                  <div class="progress-bar">
+                    <div class="progress-fill" style="width: ${normalizedProgress}%"></div>
+                  </div>
+                  <span class="progress-text" style="color: ${progressColor}">${person.progress}</span>
+                </div>
+                <div class="monitor-card-statement">${person.statement}</div>
+              </div>`;
+
+            fragment.appendChild(card);
+          });
+
+          processedCards = end;
+
+          if (processedCards < totalCards) {
+            // 使用requestAnimationFrame处理下一批
+            requestAnimationFrame(processBatch);
+          } else {
+            // 所有卡片处理完成，一次性更新DOM
+            console.log('所有批次处理完成，准备更新DOM');
+            $monitorCards.empty().append(fragment);
+
+            console.log('监控界面更新完成:', {
+              actualCardsInDOM: $('.monitor-card').length,
+              expectedCards: totalCards,
+              containerHeight: $monitorCards.height(),
+              containerVisible: $monitorCards.is(':visible'),
+              containerDisplay: $monitorCards.css('display')
+            });
+
+            // 显示更新提示
+            if ($('#monitor_interface').is(':visible')) {
+              const updateToast = $(`<div class="monitor-toast">已同步${totalCards}条监控数据</div>`);
+              $('.phone-content').append(updateToast);
+
+              setTimeout(() => {
+                updateToast.fadeOut(300, function () {
+                  $(this).remove();
+                });
+              }, 2000);
+            }
           }
         }
-      }
 
-      // 开始处理第一批
-      requestAnimationFrame(processBatch);
+        // 开始处理第一批
+        requestAnimationFrame(processBatch);
+
+      } catch (error) {
+        console.error('监控数据更新失败:', {
+          error: error.message,
+          stack: error.stack,
+          phase: '数据处理阶段',
+          personDataKeys: Object.keys(personData),
+          domState: {
+            monitorInterface: $('#monitor_interface').length,
+            monitorCards: $('.monitor-cards').length
+          }
+        });
+      }
     }, 100); // 100ms防抖
   }
 
