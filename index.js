@@ -9,6 +9,34 @@
   let isWaitingForMapResponse = false;
   let isWaitingForMonitorResponse = false;  // 新增：监控响应等待状态
 
+  // 本地存储键名常量
+  const STORAGE_KEYS = {
+    MAP_DATA: 'map_locations_data',
+    MONITOR_DATA: 'monitor_progress_data'
+  };
+
+  // 从本地存储获取数据
+  function getStorageData(key) {
+    try {
+      const data = localStorage.getItem(key);
+      return data ? JSON.parse(data) : null;
+    } catch (error) {
+      console.error(`从本地存储读取${key}失败:`, error);
+      return null;
+    }
+  }
+
+  // 保存数据到本地存储
+  function saveStorageData(key, data) {
+    try {
+      localStorage.setItem(key, JSON.stringify(data));
+      return true;
+    } catch (error) {
+      console.error(`保存数据到本地存储${key}失败:`, error);
+      return false;
+    }
+  }
+
   // 等待页面加载完成
   $(document).ready(function () {
     console.log('正在加载登录功能...');
@@ -1397,118 +1425,46 @@
     // 隐藏手机主界面
     $('.app-grid, .time, .date, .add-wallpaper-btn, .wallpaper-btn').hide();
 
-    // 更新所有位置数据
-    // 添加加载提示
-    setTimeout(() => {
-      console.log('检查页面上的位置数据元素...');
+    // 尝试从本地存储获取位置数据
+    const storedData = getStorageData(STORAGE_KEYS.MAP_DATA);
 
+    if (storedData) {
+      console.log('从本地存储获取到位置数据');
       // 创建加载提示
-      const loadingToast = $(`<div class="map-toast">正在加载地图数据...</div>`);
+      const loadingToast = $(`<div class="map-toast">正在加载本地数据...</div>`);
       $('.phone-content').append(loadingToast);
 
-      // 检查是否有位置数据元素
-      const locationElements = $('[class*="person-location-"]');
-      console.log(`在DOM中找到 ${locationElements.length} 个位置数据元素`);
-
-      // 检查SillyTavern聊天记录是否有位置数据
-      let hasLocationData = locationElements.length > 0;
-      let hasChatData = false;
-
-      try {
-        if (!hasLocationData && typeof SillyTavern !== 'undefined' && typeof SillyTavern.getContext === 'function') {
-          console.log('在DOM中没有找到位置数据，检查聊天记录...');
-          loadingToast.text('正在扫描聊天记录...');
-
-          const context = SillyTavern.getContext();
-          if (context && context.chat && Array.isArray(context.chat)) {
-            const $tempContainer = $('<div></div>');
-
-            // 遍历最近的10条消息
-            const messagesToCheck = Math.min(10, context.chat.length);
-            for (let i = context.chat.length - 1; i >= context.chat.length - messagesToCheck && !hasChatData; i--) {
-              if (i < 0) break;
-
-              const message = context.chat[i];
-              if (message && message.mes) {
-                $tempContainer.html(message.mes);
-                if ($tempContainer.find('[class*="person-location-"]').length > 0) {
-                  console.log(`在聊天记录中找到位置数据`);
-                  hasChatData = true;
-                }
-              }
-            }
-          }
-        }
-      } catch (error) {
-        console.error('检查聊天记录时出错:', error);
-      }
-
-      // 检查地图标记上是否已有数据
-      const hasExistingMarkerData = $('.map-marker[data-person-name]').length > 0;
-
-      // 完成加载的延迟
       setTimeout(() => {
+        // 使用存储的数据更新地图标记
+        $('.map-marker').each(function (index) {
+          if (index < storedData.length) {
+            const person = storedData[index];
+            $(this)
+              .attr('data-person-name', person.name)
+              .attr('data-person-location', person.location)
+              .attr('data-person-avatar', person.avatar)
+              .css({
+                'top': person.position.top + '%',
+                'left': person.position.left + '%'
+              });
+
+            // 添加标记指示器
+            const markerIndicator = $(`<div class="marker-indicator">${person.name}</div>`);
+            $(this).append(markerIndicator);
+          }
+        });
+
         loadingToast.fadeOut(200, function () {
           $(this).remove();
-
-          // 根据情况决定是否更新位置数据
-          if (hasLocationData || hasChatData) {
-            // 如果DOM或聊天记录中有位置数据，则更新地图
-            console.log('检测到位置数据，更新地图标记');
-
-            // 强制更新位置数据
-            updatePersonLocations();
-          } else if (hasExistingMarkerData) {
-            // 如果没有新数据但标记上已有数据，保留现有数据
-            console.log('页面上没有位置数据，保留现有标记数据');
-
-            // 仅刷新标记指示器，不更新数据
-            $('.map-marker').each(function () {
-              const name = $(this).attr('data-person-name');
-              if (name) {
-                const markerIndicator = $(`<div class="marker-indicator">${name}</div>`);
-                $(this).append(markerIndicator);
-              }
-            });
-
-            // 显示使用缓存的提示
-            const cacheToast = $(`<div class="map-toast">使用现有地图数据</div>`);
-            $('.phone-content').append(cacheToast);
-
-            // 2秒后移除提示
-            setTimeout(function () {
-              cacheToast.fadeOut(300, function () {
-                $(this).remove();
-              });
-            }, 2000);
-          } else {
-            // 既没有新数据也没有旧数据，使用默认数据
-            console.log('没有检测到位置数据，使用默认数据');
-            updatePersonLocations(false);
-          }
-
-          // 强制重新绑定标记点事件，防止事件丢失
-          $('.map-marker').off('click').on('click', function () {
-            const markerId = $(this).attr('data-id');
-            console.log('点击了标记点:', markerId);
-            showLocationInfo(markerId);
-          });
+          const successToast = $(`<div class="map-toast">已加载本地存储的位置数据</div>`);
+          $('.phone-content').append(successToast);
+          setTimeout(() => successToast.fadeOut(300, function () { $(this).remove(); }), 2000);
         });
       }, 300);
-
-      // 应急方案：添加直接可见的标记
-      $('.map-background').css('background-color', '#0A2A3A'); // 更深的背景色
-
-      // 检查地图界面是否正确显示
-      const mapInterface = $('#map_app_interface');
-      console.log('地图界面尺寸：', {
-        width: mapInterface.width(),
-        height: mapInterface.height(),
-        display: mapInterface.css('display'),
-        zIndex: mapInterface.css('z-index'),
-        position: mapInterface.css('position')
-      });
-    }, 200); // 延迟200ms确保DOM加载完成
+    } else {
+      console.log('本地存储中没有位置数据，使用默认数据');
+      updatePersonLocations(true);
+    }
   }
 
   // 创建地图app界面
@@ -2313,87 +2269,86 @@
               name = $(this).attr('data-person');
             }
 
-            // 如果找到了名称，提取位置
-            if (name) {
-              location = $(this).text().trim() || $(this).attr('data-location') || '未知位置';
-              console.log(`找到人物: ${name}, 位置: ${location}`);
+            // 获取位置信息
+            location = $(this).text().trim();
 
-              // 为这个名称查找头像 - 既在DOM中查找，也在聊天记录中查找
-              const escapedName = CSS.escape(name);
-              const avatarSelectors = [
-                `.person-avatar-${escapedName}`,
-                `.avatar-person-${escapedName}`,
-                `.personavatar-${escapedName}`,
-                `[data-avatar][data-person="${name}"]`
-              ];
+            // 查找对应的头像元素 - 既在DOM中查找，也在聊天记录中查找
+            const escapedName = CSS.escape(name);
+            const avatarSelectors = [
+              `.person-avatar-${escapedName}`,
+              `.avatar-person-${escapedName}`,
+              `.personavatar-${escapedName}`,
+              `[data-avatar][data-person="${name}"]`
+            ];
 
-              let avatarElement = null;
+            let avatarElement = null;
 
-              // 尝试使用多种选择器查找头像
-              for (const selector of avatarSelectors) {
-                const found = $(selector);
-                if (found.length > 0) {
-                  console.log(`使用选择器 ${selector} 找到头像元素`);
-                  avatarElement = found.first();
-                  break;
-                }
+            // 尝试使用多种选择器查找头像
+            for (const selector of avatarSelectors) {
+              const found = $(selector);
+              if (found.length > 0) {
+                console.log(`使用选择器 ${selector} 找到头像元素`);
+                avatarElement = found.first();
+                break;
               }
+            }
 
-              // 如果在DOM中没找到，尝试从聊天记录中查找头像
-              if (!avatarElement && typeof SillyTavern !== 'undefined' && typeof SillyTavern.getContext === 'function') {
-                try {
-                  const context = SillyTavern.getContext();
-                  if (context && context.chat && Array.isArray(context.chat)) {
-                    const $tempContainer = $('<div></div>');
+            // 如果在DOM中没找到，尝试从聊天记录中查找头像
+            if (!avatarElement && typeof SillyTavern !== 'undefined' && typeof SillyTavern.getContext === 'function') {
+              try {
+                const context = SillyTavern.getContext();
+                if (context && context.chat && Array.isArray(context.chat)) {
+                  const $tempContainer = $('<div></div>');
 
-                    // 只检查最新消息
-                    const lastMessage = context.chat[context.chat.length - 1];
-                    if (lastMessage && lastMessage.mes) {
-                      $tempContainer.html(lastMessage.mes);
+                  // 只检查最新消息
+                  const lastMessage = context.chat[context.chat.length - 1];
+                  if (lastMessage && lastMessage.mes) {
+                    $tempContainer.html(lastMessage.mes);
 
-                      // 尝试所有头像选择器
-                      for (const selector of avatarSelectors) {
-                        const found = $tempContainer.find(selector);
-                        if (found.length > 0) {
-                          console.log(`在最新消息中使用选择器${selector}找到头像元素`);
-                          avatarElement = found.first();
-                          break;
-                        }
+                    // 尝试所有头像选择器
+                    for (const selector of avatarSelectors) {
+                      const found = $tempContainer.find(selector);
+                      if (found.length > 0) {
+                        console.log(`在最新消息中使用选择器${selector}找到头像元素`);
+                        avatarElement = found.first();
+                        break;
                       }
                     }
                   }
-                } catch (error) {
-                  console.error('从聊天记录查找头像时出错:', error);
                 }
+              } catch (error) {
+                console.error('从聊天记录查找头像时出错:', error);
               }
+            }
 
-              if (avatarElement) {
-                // 如果元素有src属性，使用src作为头像URL
-                const avatarSrc = avatarElement.attr('src');
-                if (avatarSrc) {
-                  avatar = avatarSrc;
-                  console.log(`从src属性获取头像: ${avatar}`);
+            if (avatarElement) {
+              // 如果元素有src属性，使用src作为头像URL
+              const avatarSrc = avatarElement.attr('src');
+              if (avatarSrc) {
+                avatar = avatarSrc;
+                console.log(`从src属性获取头像: ${avatar}`);
+              } else {
+                // 否则尝试data-avatar属性
+                const dataAvatar = avatarElement.attr('data-avatar');
+                if (dataAvatar) {
+                  avatar = dataAvatar;
+                  console.log(`从data-avatar属性获取头像: ${avatar}`);
                 } else {
-                  // 否则尝试data-avatar属性
-                  const dataAvatar = avatarElement.attr('data-avatar');
-                  if (dataAvatar) {
-                    avatar = dataAvatar;
-                    console.log(`从data-avatar属性获取头像: ${avatar}`);
-                  } else {
-                    // 最后使用元素的文本内容
-                    const avatarUrl = avatarElement.text().trim();
-                    if (avatarUrl) {
-                      avatar = avatarUrl;
-                      console.log(`从文本内容获取头像: ${avatar}`);
-                    }
+                  // 最后使用元素的文本内容
+                  const avatarUrl = avatarElement.text().trim();
+                  if (avatarUrl) {
+                    avatar = avatarUrl;
+                    console.log(`从文本内容获取头像: ${avatar}`);
                   }
                 }
-                console.log(`为${name}找到自定义头像: ${avatar}`);
-              } else {
-                console.log(`没有找到${name}的头像元素，使用默认头像`);
               }
+              console.log(`为${name}找到自定义头像: ${avatar}`);
+            } else {
+              console.log(`没有找到${name}的头像元素，使用默认头像`);
+            }
 
-              // 只有当名称有效时才添加到位置列表
+            // 只有当名称有效时才添加到位置列表
+            if (name && location) {
               personLocations.push({
                 name: name,
                 location: location,
@@ -2418,7 +2373,6 @@
           }
 
           // 为每个位置生成随机坐标
-          const existingPositions = [];
           limitedLocations.forEach(person => {
             // 生成随机位置，确保不会重叠
             let position;
@@ -2436,6 +2390,9 @@
             person.position = position;
           });
 
+          // 保存数据到本地存储
+          saveStorageData(STORAGE_KEYS.MAP_DATA, limitedLocations);
+
           // 清除旧的标记指示器
           $('.marker-indicator').remove();
 
@@ -2446,15 +2403,14 @@
               const position = person.position;
 
               // 使用HTML属性存储数据
-              $(this).attr('data-person-name', person.name);
-              $(this).attr('data-person-location', person.location);
-              $(this).attr('data-person-avatar', person.avatar);
-
-              // 更新标记位置
-              $(this).css({
-                'top': `${position.top}%`,
-                'left': `${position.left}%`
-              });
+              $(this)
+                .attr('data-person-name', person.name)
+                .attr('data-person-location', person.location)
+                .attr('data-person-avatar', person.avatar)
+                .css({
+                  'top': `${position.top}%`,
+                  'left': `${position.left}%`
+                });
 
               // 增加指示器
               const markerIndicator = $(`<div class="marker-indicator">${person.name}</div>`);
@@ -2462,7 +2418,7 @@
             }
           });
 
-          console.log('人物位置已更新');
+          console.log('人物位置已更新并保存到本地存储');
 
           // 如果在地图应用中且需要显示提示，则显示更新提示
           if ($('#map_app_interface').is(':visible') && showUpdateToast) {
@@ -2593,7 +2549,7 @@
     monitorInterface.appendTo('.phone-content');
     console.log('监控界面已移动到phone-content中');
 
-    // 设置监控界面样式（移除这部分，改用CSS类管理）
+    // 设置监控界面样式
     monitorInterface.css({
       'display': 'flex',
       'opacity': '1',
@@ -2619,62 +2575,32 @@
       mainElements.show();
     });
 
-    // 绑定刷新按钮事件
-    $('#monitor_refresh_btn').off('click').on('click', function () {
-      console.log('刷新按钮被点击');
-      $(this).addClass('refreshing');
-
-      // 添加加载动画
-      const loadingOverlay = $(`
-        <div class="monitor-loading">
-          <div class="monitor-loading-text">加载数据中...</div>
-        </div>
-      `);
-      $('.monitor-content').append(loadingOverlay);
-
-      // 模拟数据加载延迟
-      setTimeout(function () {
-        updateMonitorData();
-        loadingOverlay.fadeOut(300, function () {
-          $(this).remove();
-        });
-        $('#monitor_refresh_btn').removeClass('refreshing');
-      }, 1500);
-    });
-
-    // 移除系统信息面板的代码
+    // 移除系统信息面板
     $('.monitor-system-info').remove();
 
-    // 更新监控数据
-    console.log('开始更新监控数据...');
-    updateMonitorData();
+    // 尝试从本地存储获取监控数据
+    const storedData = getStorageData(STORAGE_KEYS.MONITOR_DATA);
 
-    // 创建随机数据点效果
-    createRandomDataPoints();
-  }
+    if (storedData) {
+      console.log('从本地存储获取到监控数据');
+      // 创建加载提示
+      const loadingToast = $(`<div class="monitor-toast">正在加载本地数据...</div>`);
+      $('.phone-content').append(loadingToast);
 
-  // 创建随机数据点效果
-  function createRandomDataPoints() {
-    // 清除现有数据点
-    $('.monitor-data-point').remove();
+      setTimeout(() => {
+        // 使用存储的数据更新监控卡片
+        updateMonitorCardsWithData(storedData);
 
-    // 创建新的随机数据点
-    const content = $('.phone-content');
-    const contentWidth = content.width();
-    const contentHeight = content.height();
-
-    for (let i = 0; i < 12; i++) {
-      const x = Math.random() * contentWidth;
-      const y = Math.random() * contentHeight;
-
-      const dataPoint = $(`<div class="monitor-data-point"></div>`);
-      dataPoint.css({
-        'left': x + 'px',
-        'top': y + 'px',
-        'animation-delay': (Math.random() * 2) + 's'
-      });
-
-      content.append(dataPoint);
+        loadingToast.fadeOut(200, function () {
+          $(this).remove();
+          const successToast = $(`<div class="monitor-toast">已加载本地存储的监控数据</div>`);
+          $('.phone-content').append(successToast);
+          setTimeout(() => successToast.fadeOut(300, function () { $(this).remove(); }), 2000);
+        });
+      }, 300);
+    } else {
+      console.log('本地存储中没有监控数据，使用默认数据');
+      updateMonitorData();
     }
   }
 
@@ -2733,54 +2659,57 @@
         console.error('从SillyTavern获取数据时出错:', error);
       }
 
-      // 一次性获取所有需要的元素
-      const progressElements = $('[class*="person-progress-"]');
-      const avatarElements = $('[class*="person-avatar-"]');
-      const statementElements = $('[class*="person-statement-"]');
+      // 如果从SillyTavern没有获取到数据，尝试从页面上获取
+      if (Object.keys(personData).length === 0) {
+        // 一次性获取所有需要的元素
+        const progressElements = $('[class*="person-progress-"]');
+        const avatarElements = $('[class*="person-avatar-"]');
+        const statementElements = $('[class*="person-statement-"]');
 
-      // 创建映射以加快查找
-      const avatarMap = {};
-      const statementMap = {};
+        // 创建映射以加快查找
+        const avatarMap = {};
+        const statementMap = {};
 
-      // 批量处理头像和声明数据
-      avatarElements.each(function () {
-        const classes = $(this).attr('class') || '';
-        const match = classes.match(/person-avatar-([^\\s]+)/);
-        if (match) {
-          avatarMap[match[1]] = $(this).text().trim();
-        }
-      });
+        // 批量处理头像和声明数据
+        avatarElements.each(function () {
+          const classes = $(this).attr('class') || '';
+          const match = classes.match(/person-avatar-([^\\s]+)/);
+          if (match) {
+            avatarMap[match[1]] = $(this).text().trim();
+          }
+        });
 
-      statementElements.each(function () {
-        const classes = $(this).attr('class') || '';
-        const match = classes.match(/person-statement-([^\\s]+)/);
-        if (match) {
-          statementMap[match[1]] = $(this).text().trim();
-        }
-      });
+        statementElements.each(function () {
+          const classes = $(this).attr('class') || '';
+          const match = classes.match(/person-statement-([^\\s]+)/);
+          if (match) {
+            statementMap[match[1]] = $(this).text().trim();
+          }
+        });
 
-      // 处理进度数据
-      progressElements.each(function () {
-        const classes = $(this).attr('class') || '';
-        const match = classes.match(/person-progress-([^\\s]+)/);
+        // 处理进度数据
+        progressElements.each(function () {
+          const classes = $(this).attr('class') || '';
+          const match = classes.match(/person-progress-([^\\s]+)/);
 
-        if (match) {
-          const name = match[1];
-          const progress = parseInt($(this).text().trim(), 10);
+          if (match) {
+            const name = match[1];
+            const progress = parseInt($(this).text().trim(), 10);
 
-          // 使用映射快速查找头像和声明
-          const avatar = avatarMap[name] || `https://pub-07f3e1b810bb45079240dae84aaadd3e.r2.dev/profile/${name}.jpg`;
-          const statement = statementMap[name] || '无可用数据...';
+            // 使用映射快速查找头像和声明
+            const avatar = avatarMap[name] || `https://pub-07f3e1b810bb45079240dae84aaadd3e.r2.dev/profile/${name}.jpg`;
+            const statement = statementMap[name] || '无可用数据...';
 
-          // 添加到人物数据
-          personData[name] = {
-            name,
-            progress,
-            avatar,
-            statement
-          };
-        }
-      });
+            // 添加到人物数据
+            personData[name] = {
+              name,
+              progress,
+              avatar,
+              statement
+            };
+          }
+        });
+      }
 
       // 如果没有找到任何数据，使用默认数据
       if (Object.keys(personData).length === 0) {
@@ -2819,68 +2748,72 @@
         Object.assign(personData, defaultData);
       }
 
-      // 使用虚拟列表更新DOM
-      const $monitorCards = $('.monitor-cards');
-      const fragment = document.createDocumentFragment();
-      const batchSize = 5; // 每批处理5个卡片
-      const totalCards = Object.keys(personData).length;
-      let processedCards = 0;
+      // 保存数据到本地存储
+      saveStorageData(STORAGE_KEYS.MONITOR_DATA, Object.values(personData));
 
-      function processBatch() {
-        const start = processedCards;
-        const end = Math.min(start + batchSize, totalCards);
-        const batch = Object.values(personData).slice(start, end);
+      // 更新监控卡片
+      updateMonitorCardsWithData(Object.values(personData));
 
-        batch.forEach(person => {
-          const normalizedProgress = ((person.progress + 50) / 150 * 100).toFixed(1);
-          const progressColor = person.progress >= 0 ? 'rgba(0, 210, 255, 0.9)' : 'rgba(255, 70, 70, 0.9)';
-
-          const card = document.createElement('div');
-          card.className = 'monitor-card';
-          card.innerHTML = `
-            <div class="monitor-card-avatar">
-              <img src="${person.avatar}" alt="${person.name}" onerror="this.src='https://pub-07f3e1b810bb45079240dae84aaadd3e.r2.dev/profile/defult.jpg'">
-            </div>
-            <div class="monitor-card-info">
-              <div class="monitor-card-name">${person.name}</div>
-              <div class="monitor-card-progress">
-                <div class="progress-bar">
-                  <div class="progress-fill" style="width: ${normalizedProgress}%"></div>
-                </div>
-                <span class="progress-text" style="color: ${progressColor}">${person.progress}</span>
-              </div>
-              <div class="monitor-card-statement">${person.statement}</div>
-            </div>`;
-
-          fragment.appendChild(card);
-        });
-
-        processedCards = end;
-
-        if (processedCards < totalCards) {
-          // 使用requestAnimationFrame处理下一批
-          requestAnimationFrame(processBatch);
-        } else {
-          // 所有卡片处理完成，一次性更新DOM
-          $monitorCards.empty().append(fragment);
-
-          // 显示更新提示
-          if ($('#monitor_interface').is(':visible')) {
-            const updateToast = $(`<div class="monitor-toast">已同步${totalCards}条监控数据</div>`);
-            $('.phone-content').append(updateToast);
-
-            setTimeout(() => {
-              updateToast.fadeOut(300, function () {
-                $(this).remove();
-              });
-            }, 2000);
-          }
-        }
+      // 显示更新提示
+      if ($('#monitor_interface').is(':visible')) {
+        const updateToast = $(`<div class="monitor-toast">已同步${Object.keys(personData).length}条监控数据</div>`);
+        $('.phone-content').append(updateToast);
+        setTimeout(() => {
+          updateToast.fadeOut(300, function () {
+            $(this).remove();
+          });
+        }, 2000);
       }
-
-      // 开始处理第一批
-      requestAnimationFrame(processBatch);
     }, 100); // 100ms防抖
+  }
+
+  // 使用数据更新监控卡片的辅助函数
+  function updateMonitorCardsWithData(data) {
+    const $monitorCards = $('.monitor-cards');
+    const fragment = document.createDocumentFragment();
+    const batchSize = 5;
+    const totalCards = data.length;
+    let processedCards = 0;
+
+    function processBatch() {
+      const start = processedCards;
+      const end = Math.min(start + batchSize, totalCards);
+      const batch = data.slice(start, end);
+
+      batch.forEach(person => {
+        const normalizedProgress = ((person.progress + 50) / 150 * 100).toFixed(1);
+        const progressColor = person.progress >= 0 ? 'rgba(0, 210, 255, 0.9)' : 'rgba(255, 70, 70, 0.9)';
+
+        const card = document.createElement('div');
+        card.className = 'monitor-card';
+        card.innerHTML = `
+          <div class="monitor-card-avatar">
+            <img src="${person.avatar}" alt="${person.name}" onerror="this.src='https://pub-07f3e1b810bb45079240dae84aaadd3e.r2.dev/profile/defult.jpg'">
+          </div>
+          <div class="monitor-card-info">
+            <div class="monitor-card-name">${person.name}</div>
+            <div class="monitor-card-progress">
+              <div class="progress-bar">
+                <div class="progress-fill" style="width: ${normalizedProgress}%"></div>
+              </div>
+              <span class="progress-text" style="color: ${progressColor}">${person.progress}</span>
+            </div>
+            <div class="monitor-card-statement">${person.statement}</div>
+          </div>`;
+
+        fragment.appendChild(card);
+      });
+
+      processedCards = end;
+
+      if (processedCards < totalCards) {
+        requestAnimationFrame(processBatch);
+      } else {
+        $monitorCards.empty().append(fragment);
+      }
+    }
+
+    requestAnimationFrame(processBatch);
   }
 
 })();
