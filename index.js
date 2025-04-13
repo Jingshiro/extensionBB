@@ -46,6 +46,20 @@
       $('head').append('<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">');
       console.log('添加了视口meta标签');
     }
+    
+        // 创建音效对象
+        const buttonSound = new Audio('https://pub-07f3e1b810bb45079240dae84aaadd3e.r2.dev/sound/手机按钮.wav');
+           // 设置音量（0.0 到 1.0）
+        buttonSound.volume = 0.3; 
+    
+        // 为所有按钮添加点击音效
+        $(document).on('click', 'button, .login-button, .login-submit-btn, .login-cancel-btn, .login-close-btn, .register-btn, .custom-close-btn, .app-icon, .phone-close-btn, .map-back-btn, .map-refresh-btn, .monitor-back-btn, .monitor-refresh-btn, .location-info-close, .logout-btn, .wallpaper-btn, .add-wallpaper-btn', function() {
+          buttonSound.currentTime = 0;
+          buttonSound.play().catch(error => {
+            console.log('播放音效失败:', error);
+          });
+        });
+        console.log('按钮音效功能已加载');
 
     // 延迟执行以确保界面已加载
     setTimeout(function () {
@@ -407,9 +421,6 @@
                     <div class="monitor-refresh-btn" id="monitor_refresh_btn">
                         <i class="fa-solid fa-arrows-rotate"></i>
                     </div>
-                </div>
-                <div class="monitor-close-btn" id="monitor_close_btn">
-                    <i class="fa-solid fa-xmark"></i>
                 </div>
             </div>
             <div class="monitor-content">
@@ -2566,14 +2577,6 @@
       mainElements.show();
     });
 
-    // 绑定关闭按钮事件
-    $('#monitor_close_btn').off('click').on('click', function () {
-      console.log('关闭按钮被点击');
-      // 隐藏监控界面
-      monitorInterface.hide();
-      // 显示手机主界面元素
-      mainElements.show();
-    });
 
     // 移除系统信息面板
     $('.monitor-system-info').remove();

@@ -1,11 +1,11 @@
 {
-  "display_name": "方述今天还活着吗",
+  "display_name": "方述今天还活着吗？",
   "loading_order": 9,
   "requires": [],
   "optional": [],
   "js": "index.js",
   "css": "style.css",
   "author": "镜",
-  "version": "0.0.1",
-  "homePage": "https://github.com/yourusername/st-login-extension"
+  "version": "0.5",
+  "homePage": "https://github.com/Jingshiro/extensionBB"
 }
