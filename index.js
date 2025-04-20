@@ -103,7 +103,7 @@
          * - 地图和监控界面按钮（刷新、返回、关闭）
          * - 其他功能按钮（退出、壁纸设置）
          */
-        $(document).on('click', 'button, .login-button, .login-submit-btn, .login-cancel-btn, .login-close-btn, .register-btn, .custom-close-btn, .app-icon, .phone-close-btn, .map-back-btn, .map-refresh-btn, .monitor-back-btn, .monitor-refresh-btn, .location-info-close, .logout-btn, .wallpaper-btn, .add-wallpaper-btn', function() {
+        $(document).on('click', 'button, .login-button, .login-submit-btn, .login-cancel-btn, .login-close-btn, .register-btn, .custom-close-btn, .app-icon, .phone-close-btn, .map-back-btn, .map-refresh-btn, .monitor-back-btn, .monitor-refresh-btn, .location-info-close, .logout-btn, .wallpaper-btn, .add-wallpaper-btn, .news-back-btn, .news-refresh-btn', function() {
           buttonSound.currentTime = 0;
           buttonSound.play().catch(error => {
             console.log('播放音效失败:', error);
@@ -3072,17 +3072,19 @@ function showNewsApp() {
     if (newsInterface.length === 0) {
         newsInterface = $(`
             <div id="news_interface" class="news-interface" style="display: none;">
-                <div class="news-header">
+                <div class="news-app-header">
                     <div class="news-back-btn" id="news_back_btn">
                         <i class="fa-solid fa-chevron-left"></i>
                     </div>
                     <div class="news-title">今日头条</div>
-                    <div class="news-refresh-btn" id="news_refresh_btn">
-                        <i class="fa-solid fa-arrows-rotate"></i>
+                    <div class="news-refresh-menu" style="right: 50px;">
+                        <div class="news-refresh-btn" id="news_refresh_btn">
+                            <i class="fa-solid fa-arrows-rotate"></i>
+                        </div>
                     </div>
                 </div>
-                <div class="news-container">
-                    <div class="news-content">
+                <div class="news-content">
+                    <div class="news-content-inner">
                         <!-- 新闻内容将在这里显示 -->
                     </div>
                 </div>
