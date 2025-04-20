@@ -1,5 +1,80 @@
 /* All style elements for your extension go here */
 
+/* 导入文渊新宋字体 */
+@import url("https://fontsapi.zeoseven.com/415/main/result.css");
+
+/* 今日头条应用样式 */
+.news-content {
+    padding: 15px;
+    background: #111;
+    height: calc(100% - 60px);
+    overflow-y: auto;
+    font-family: "WenYuan Serif SC";
+    font-weight: normal;
+}
+
+.news-content h1 {
+    font-size: 24px;
+    font-weight: bold;
+    color: #fff;
+    margin-bottom: 15px;
+    border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+    padding-bottom: 10px;
+}
+
+.news-content h2 {
+    font-size: 20px;
+    font-weight: bold;
+    color: #eee;
+    margin: 15px 0;
+}
+
+.news-content p {
+    font-size: 14px;
+    line-height: 1.8;
+    color: #ddd;
+    margin: 10px 0;
+    letter-spacing: 0.5px;
+}
+
+.news-content .no-content {
+    text-align: center;
+    color: #888;
+    font-size: 16px;
+    margin-top: 50px;
+}
+
+/* 图片描述框样式 */
+.news-content .image-placeholder {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px dashed rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    padding: 15px;
+    margin: 10px 0;
+    cursor: pointer;
+    position: relative;
+    transition: all 0.3s ease;
+}
+
+.news-content .image-placeholder:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.news-content .image-placeholder::before {
+    content: '图片描述';
+    display: block;
+    color: #888;
+    font-size: 12px;
+    margin-bottom: 5px;
+}
+
+.news-content .image-description {
+    color: #aaa;
+    font-size: 14px;
+    line-height: 1.6;
+    font-style: italic;
+}
+
 /* 页面基础样式 */
 html,
 body {
