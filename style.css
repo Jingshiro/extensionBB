@@ -72,7 +72,6 @@
 .news-content {
     flex: 1;
     position: relative;
-    overflow: hidden;
     height: calc(100% - 50px);
     min-height: 300px;
     background: #111;
