@@ -3136,6 +3136,8 @@ function updateNewsContent() {
     }
 
     window.newsUpdateTimeout = setTimeout(() => {
+        let newsContentFound = false;
+
         // 先尝试从 SillyTavern 聊天记录中获取数据
         try {
             if (typeof SillyTavern !== 'undefined' && typeof SillyTavern.getContext === 'function') {
@@ -3168,6 +3170,7 @@ function updateNewsContent() {
                                         $(this).remove();
                                     });
                                 }, 2000);
+                                newsContentFound = true;
                                 return;
                             }
                         }
@@ -3175,11 +3178,43 @@ function updateNewsContent() {
                 }
             }
         } catch (error) {
-            console.error('获取今日头条内容时发生错误:', error);
+            console.error('从SillyTavern获取今日头条内容时发生错误:', error);
+        }
+
+        // 如果从SillyTavern没有获取到数据，尝试从页面上获取
+        if (!newsContentFound) {
+            try {
+                console.log('尝试从页面上获取今日头条内容...');
+                // 查找页面上的今日头条内容
+                const $pageNewsDiv = $('.today_news');
+                if ($pageNewsDiv.length > 0) {
+                    const newsContent = $pageNewsDiv.html();
+                    if (newsContent) {
+                        // 处理markdown格式
+                        let formattedContent = processNewsContent(newsContent);
+                        $newsContent.html(formattedContent);
+
+                        // 显示更新提示
+                        const updateToast = $(`<div class="monitor-toast">内容已从页面更新</div>`);
+                        $('.phone-content').append(updateToast);
+                        setTimeout(() => {
+                            updateToast.fadeOut(300, function() {
+                                $(this).remove();
+                            });
+                        }, 2000);
+                        newsContentFound = true;
+                        return;
+                    }
+                }
+            } catch (error) {
+                console.error('从页面获取今日头条内容时发生错误:', error);
+            }
         }
 
         // 如果没有找到内容，显示默认消息
-        $newsContent.html('<div class="no-content">暂无内容</div>');
+        if (!newsContentFound) {
+            $newsContent.html('<div class="no-content">暂无内容</div>');
+        }
     }, 100); // 100ms防抖
 }
 
