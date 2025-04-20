@@ -3071,19 +3071,17 @@ function showNewsApp() {
     let newsInterface = $('#news_interface');
     if (newsInterface.length === 0) {
         newsInterface = $(`
-            <div id="news_interface" class="monitor-interface" style="display: none;">
-                <div class="monitor-header">
-                    <div class="monitor-back-btn" id="news_back_btn">
+            <div id="news_interface" class="news-interface" style="display: none;">
+                <div class="news-header">
+                    <div class="news-back-btn" id="news_back_btn">
                         <i class="fa-solid fa-chevron-left"></i>
                     </div>
-                    <div class="monitor-title">今日头条</div>
-                    <div class="monitor-refresh-menu" style="right: 50px;">
-                        <div class="monitor-refresh-btn" id="news_refresh_btn">
-                            <i class="fa-solid fa-arrows-rotate"></i>
-                        </div>
+                    <div class="news-title">今日头条</div>
+                    <div class="news-refresh-btn" id="news_refresh_btn">
+                        <i class="fa-solid fa-arrows-rotate"></i>
                     </div>
                 </div>
-                <div class="monitor-content">
+                <div class="news-container">
                     <div class="news-content">
                         <!-- 新闻内容将在这里显示 -->
                     </div>
