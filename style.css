@@ -5,27 +5,27 @@
 
 /* 今日头条应用样式 */
 .news-interface {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 360px;
-    height: 640px;
-    background-color: #000;
-    border-radius: 20px;
-    z-index: 1000;
-    display: flex;
-    flex-direction: column;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 360px;
+  height: 640px;
+  background-color: #000;
+  border-radius: 20px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
 }
 
 .news-app-header {
-    height: 50px;
-    padding: 0 15px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    background-color: #1a1a1a;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    z-index: 1500;
+  height: 50px;
+  padding: 0 15px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: #1a1a1a;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  z-index: 1500;
 }
 
 .news-refresh-menu {
@@ -36,19 +36,19 @@
 
 .news-back-btn,
 .news-refresh-btn {
-    width: 30px;
-    height: 30px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    border-radius: 50%;
-    transition: background-color 0.2s;
-    color: #fff;
-    background-color: rgba(0, 100, 200, 0.3);
-    /* 添加背景色增加可见度 */
-    box-shadow: 0 0 8px rgba(100, 181, 246, 0.5);
-    /* 添加阴影效果 */
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border-radius: 50%;
+  transition: background-color 0.2s;
+  color: #fff;
+  background-color: rgba(0, 100, 200, 0.3);
+  /* 添加背景色增加可见度 */
+  box-shadow: 0 0 8px rgba(100, 181, 246, 0.5);
+  /* 添加阴影效果 */
 }
 
 .news-back-btn:hover,
@@ -58,98 +58,100 @@
 }
 
 .news-title {
-    color: #fff;
-    font-size: 16px;
-    font-weight: 500;
-    flex: 1;
-    /* 让标题区域占据中间所有空间 */
-    text-align: center;
-    /* 标题居中 */
-    margin: 0 15px;
-    /* 标题左右添加间距 */
+  color: #fff;
+  font-size: 16px;
+  font-weight: 500;
+  flex: 1;
+  /* 让标题区域占据中间所有空间 */
+  text-align: center;
+  /* 标题居中 */
+  margin: 0 15px;
+  /* 标题左右添加间距 */
 }
 
 .news-content {
-    flex: 1;
-    position: relative;
-    overflow-y: auto;
-    background: #111;
+  flex: 1;
+  position: relative;
+  overflow-y: auto;
+  background: #111;
 }
 
 .news-content-inner {
-    padding: 0;
-    width: 100%;
-    height: 100%;
-    overflow-y: auto;
-    font-family: "WenYuan Serif SC";
-    font-weight: normal;
-    scrollbar-width: thin; /* Firefox */
-    -ms-overflow-style: -ms-autohiding-scrollbar; /* IE and Edge */
+  padding: 5;
+  width: 95%;
+  height: 95%;
+  overflow-y: auto;
+  font-family: "WenYuan Serif SC";
+  font-weight: normal;
+  scrollbar-width: thin;
+  /* Firefox */
+  -ms-overflow-style: -ms-autohiding-scrollbar;
+  /* IE and Edge */
 }
 
 
 .news-content h1 {
-    font-size: 24px;
-    font-weight: bold;
-    color: #fff;
-    margin: 0 0 15px 0;
-    border-bottom: 2px solid rgba(255, 255, 255, 0.1);
-    padding: 15px 15px 10px;
+  font-size: 24px;
+  font-weight: bold;
+  color: #fff;
+  margin: 0 0 15px 0;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+  padding: 15px 15px 10px;
 }
 
 .news-content h2 {
-    font-size: 20px;
-    font-weight: bold;
-    color: #eee;
-    margin: 15px 0;
-    padding: 0 15px;
+  font-size: 20px;
+  font-weight: bold;
+  color: #eee;
+  margin: 15px 0;
+  padding: 0 15px;
 }
 
 .news-content p {
-    font-size: 14px;
-    line-height: 1.8;
-    color: #ddd;
-    margin: 10px 0;
-    padding: 0 15px;
-    letter-spacing: 0.5px;
+  font-size: 14px;
+  line-height: 1.8;
+  color: #ddd;
+  margin: 10px 0;
+  padding: 0 15px;
+  letter-spacing: 0.5px;
 }
 
 .news-content .no-content {
-    text-align: center;
-    color: #888;
-    font-size: 16px;
-    margin-top: 50px;
+  text-align: center;
+  color: #888;
+  font-size: 16px;
+  margin-top: 50px;
 }
 
 /* 图片描述框样式 */
 .news-content .image-placeholder {
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px dashed rgba(255, 255, 255, 0.2);
-    border-radius: 4px;
-    padding: 15px;
-    margin: 10px 15px;
-    cursor: pointer;
-    position: relative;
-    transition: all 0.3s ease;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px dashed rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  padding: 15px;
+  margin: 10px 15px;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.3s ease;
 }
 
 .news-content .image-placeholder:hover {
-    background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .news-content .image-placeholder::before {
-    content: '配图';
-    display: block;
-    color: #888;
-    font-size: 12px;
-    margin-bottom: 5px;
+  content: '配图';
+  display: block;
+  color: #888;
+  font-size: 12px;
+  margin-bottom: 5px;
 }
 
 .news-content .image-description {
-    color: #aaa;
-    font-size: 14px;
-    line-height: 1.6;
-    font-style: italic;
+  color: #aaa;
+  font-size: 14px;
+  line-height: 1.6;
+  font-style: italic;
 }
 
 /* 页面基础样式 */
@@ -2165,7 +2167,7 @@ body {
 }
 
 .monitor-back-btn,
-.monitor-refresh-btn{
+.monitor-refresh-btn {
   width: 30px;
   height: 30px;
   display: flex;
@@ -2181,7 +2183,7 @@ body {
 }
 
 .monitor-back-btn:hover,
-.monitor-refresh-btn:hover{
+.monitor-refresh-btn:hover {
   background-color: rgba(100, 181, 246, 0.5);
   box-shadow: 0 0 12px rgba(100, 181, 246, 0.8);
 }
