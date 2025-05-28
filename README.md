@@ -1,2 +1,1 @@
-这是给自用卡的自用插件，不要乱用
-反正用了你也不知道密码
+二改自https://gitee.com/huaqing1122/mobile-ui-test.git 
