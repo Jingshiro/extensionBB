@@ -77,39 +77,67 @@
     // 添加移动设备视口元标签，如果不存在
     if (!$('meta[name="viewport"]').length) {
       /**
-       * 添加视口元标签，确保移动设备正确显示页面
-       * 视口元标签用于控制页面在移动设备上的缩放和布局
+       * 检测设备类型并设置适当的视口标签
+       * 移动设备使用移动端视口设置
+       * 桌面端使用桌面端视口设置
        */
-      $('head').append('<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">');
-      console.log('添加了视口meta标签');
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+        (window.innerWidth <= 768 && 'ontouchstart' in window);
+
+      if (isMobile) {
+        // 移动设备视口设置
+        $('head').append('<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">');
+        console.log('添加了移动设备视口meta标签');
+      } else {
+        // 桌面端视口设置 - 不设置viewport或使用宽松设置
+        $('head').append('<meta name="viewport" content="width=1024, initial-scale=1.0, user-scalable=yes">');
+        console.log('添加了桌面端视口meta标签');
+
+        // 桌面端额外确保页面不会被缩放
+        $('body').css({
+          'min-width': '100%',
+          'zoom': '1',
+          'transform': 'scale(1)',
+          'transform-origin': '0 0'
+        });
+      }
+    } else {
+      // 如果已经存在viewport标签，在桌面端更新它
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+        (window.innerWidth <= 768 && 'ontouchstart' in window);
+
+      if (!isMobile) {
+        $('meta[name="viewport"]').attr('content', 'width=1024, initial-scale=1.0, user-scalable=yes');
+        console.log('更新了已存在的viewport为桌面端设置');
+      }
     }
-    
+
     /**
      * 创建按钮音效对象
      * 用于增强用户交互体验，模拟手机按键音效
      */
     const buttonSound = new Audio('https://pub-07f3e1b810bb45079240dae84aaadd3e.r2.dev/sound/手机按钮.wav');
-           /**
-         * 设置按钮音效音量
-         * 0.3的音量适中，不会太大影响用户体验
-         */
-        buttonSound.volume = 0.3; 
-    
-        /**
-         * 为所有交互元素添加点击音效
-         * 包括：
-         * - 登录相关按钮（登录、提交、取消、关闭、注册）
-         * - 手机界面按钮（应用图标、关闭、返回）
-         * - 地图和监控界面按钮（刷新、返回、关闭）
-         * - 其他功能按钮（退出、壁纸设置）
-         */
-        $(document).on('click', 'button, .login-button, .login-submit-btn, .login-cancel-btn, .login-close-btn, .register-btn, .custom-close-btn, .app-icon, .phone-close-btn, .map-back-btn, .map-refresh-btn, .monitor-back-btn, .monitor-refresh-btn, .location-info-close, .logout-btn, .wallpaper-btn, .add-wallpaper-btn, .news-back-btn, .news-refresh-btn', function() {
-          buttonSound.currentTime = 0;
-          buttonSound.play().catch(error => {
-            console.log('播放音效失败:', error);
-          });
-        });
-        console.log('按钮音效功能已加载');
+    /**
+  * 设置按钮音效音量
+  * 0.3的音量适中，不会太大影响用户体验
+  */
+    buttonSound.volume = 0.3;
+
+    /**
+     * 为所有交互元素添加点击音效
+     * 包括：
+     * - 登录相关按钮（登录、提交、取消、关闭、注册）
+     * - 手机界面按钮（应用图标、关闭、返回）
+     * - 地图和监控界面按钮（刷新、返回、关闭）
+     * - 其他功能按钮（退出、壁纸设置）
+     */
+    $(document).on('click', 'button, .login-button, .login-submit-btn, .login-cancel-btn, .login-close-btn, .register-btn, .custom-close-btn, .app-icon, .phone-close-btn, .map-back-btn, .map-refresh-btn, .monitor-back-btn, .monitor-refresh-btn, .location-info-close, .logout-btn, .wallpaper-btn, .add-wallpaper-btn, .news-back-btn, .news-refresh-btn', function () {
+      buttonSound.currentTime = 0;
+      buttonSound.play().catch(error => {
+        console.log('播放音效失败:', error);
+      });
+    });
+    console.log('按钮音效功能已加载');
 
     /**
      * 延迟2秒执行初始化
@@ -830,19 +858,19 @@
     const customWallpapers = JSON.parse(localStorage.getItem('FSpanel_custom_wallpapers') || '[]');
 
     // 绑定今日头条应用图标点击事件
-    $('#news_app').on('click', function() {
-        // 先显示今日头条界面
-        showNewsApp();
+    $('#news_app').on('click', function () {
+      // 先显示今日头条界面
+      showNewsApp();
 
-        // 发送查看今日头条消息
-        sendVirtualMessage('@查看今日头条');
+      // 发送查看今日头条消息
+      sendVirtualMessage('@查看今日头条');
 
-        // 绑定刷新按钮点击事件来移除等待提示
-        $('#news_refresh_btn').one('click', function() {
-            $('.waiting-toast').fadeOut(200, function() {
-                $(this).remove();
-            });
+      // 绑定刷新按钮点击事件来移除等待提示
+      $('#news_refresh_btn').one('click', function () {
+        $('.waiting-toast').fadeOut(200, function () {
+          $(this).remove();
         });
+      });
     });
 
     // 将自定义壁纸添加到壁纸列表
@@ -3060,7 +3088,7 @@
   /**
  * 显示今日头条应用界面
  */
-function showNewsApp() {
+  function showNewsApp() {
     console.log('准备显示今日头条应用...');
 
     // 隐藏手机主界面元素
@@ -3070,7 +3098,7 @@ function showNewsApp() {
     // 创建今日头条界面
     let newsInterface = $('#news_interface');
     if (newsInterface.length === 0) {
-        newsInterface = $(`
+      newsInterface = $(`
             <div id="news_interface" class="news-interface" style="display: none;">
                 <div class="news-app-header">
                     <div class="news-back-btn" id="news_back_btn">
@@ -3091,29 +3119,29 @@ function showNewsApp() {
             </div>
         `);
 
-        // 添加到phone-content中
-        newsInterface.appendTo('.phone-content');
+      // 添加到phone-content中
+      newsInterface.appendTo('.phone-content');
 
-        // 绑定返回按钮事件
-        $('#news_back_btn').on('click', function() {
-            newsInterface.hide();
-            mainElements.show();
-        });
+      // 绑定返回按钮事件
+      $('#news_back_btn').on('click', function () {
+        newsInterface.hide();
+        mainElements.show();
+      });
 
-        // 绑定刷新按钮事件
-        $('#news_refresh_btn').on('click', function() {
-            if (typeof SillyTavern !== 'undefined' && typeof SillyTavern.getContext === 'function') {
-                updateNewsContent();
-            }
-        });
+      // 绑定刷新按钮事件
+      $('#news_refresh_btn').on('click', function () {
+        if (typeof SillyTavern !== 'undefined' && typeof SillyTavern.getContext === 'function') {
+          updateNewsContent();
+        }
+      });
     }
 
     // 显示今日头条界面
     newsInterface.css({
-        'display': 'flex',
-        'opacity': '1',
-        'visibility': 'visible',
-        'z-index': '100'
+      'display': 'flex',
+      'opacity': '1',
+      'visibility': 'visible',
+      'z-index': '100'
     });
 
 
@@ -3121,138 +3149,138 @@ function showNewsApp() {
     // 显示加载提示
     const loadingToast = $(`<div class="map-toast waiting-toast">收到回复后请点击刷新按钮</div>`);
     $('.phone-content').append(loadingToast);
-}
+  }
 
-/**
- * 更新今日头条内容
- */
-function updateNewsContent() {
+  /**
+   * 更新今日头条内容
+   */
+  function updateNewsContent() {
     console.log('开始获取今日头条内容...');
     const $newsContent = $('.news-content');
 
     // 使用防抖，避免频繁更新
     if (window.newsUpdateTimeout) {
-        clearTimeout(window.newsUpdateTimeout);
+      clearTimeout(window.newsUpdateTimeout);
     }
 
     window.newsUpdateTimeout = setTimeout(() => {
-        let newsContentFound = false;
+      let newsContentFound = false;
 
-        // 先尝试从 SillyTavern 聊天记录中获取数据
+      // 先尝试从 SillyTavern 聊天记录中获取数据
+      try {
+        if (typeof SillyTavern !== 'undefined' && typeof SillyTavern.getContext === 'function') {
+          console.log('尝试从 SillyTavern 聊天记录中获取数据...');
+          const context = SillyTavern.getContext();
+
+          if (context && context.chat && Array.isArray(context.chat)) {
+            // 创建临时容器解析HTML
+            const $tempContainer = $('<div></div>');
+
+            // 只检查最新的消息
+            const lastMessage = context.chat[context.chat.length - 1];
+            if (lastMessage && lastMessage.mes) {
+              $tempContainer.html(lastMessage.mes);
+
+              // 查找今日头条内容
+              const $newsDiv = $tempContainer.find('.today_news');
+              if ($newsDiv.length > 0) {
+                const newsContent = $newsDiv.html();
+                if (newsContent) {
+                  // 处理markdown格式
+                  let formattedContent = processNewsContent(newsContent);
+                  $newsContent.html(formattedContent);
+
+                  // 显示更新提示
+                  const updateToast = $(`<div class="monitor-toast">内容已更新</div>`);
+                  $('.phone-content').append(updateToast);
+                  setTimeout(() => {
+                    updateToast.fadeOut(300, function () {
+                      $(this).remove();
+                    });
+                  }, 2000);
+                  newsContentFound = true;
+                  return;
+                }
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error('从SillyTavern获取今日头条内容时发生错误:', error);
+      }
+
+      // 如果从SillyTavern没有获取到数据，尝试从页面上获取
+      if (!newsContentFound) {
         try {
-            if (typeof SillyTavern !== 'undefined' && typeof SillyTavern.getContext === 'function') {
-                console.log('尝试从 SillyTavern 聊天记录中获取数据...');
-                const context = SillyTavern.getContext();
+          console.log('尝试从页面上获取今日头条内容...');
+          // 查找页面上的今日头条内容
+          const $pageNewsDiv = $('.today_news');
+          if ($pageNewsDiv.length > 0) {
+            const newsContent = $pageNewsDiv.html();
+            if (newsContent) {
+              // 处理markdown格式
+              let formattedContent = processNewsContent(newsContent);
+              $newsContent.html(formattedContent);
 
-                if (context && context.chat && Array.isArray(context.chat)) {
-                    // 创建临时容器解析HTML
-                    const $tempContainer = $('<div></div>');
-
-                    // 只检查最新的消息
-                    const lastMessage = context.chat[context.chat.length - 1];
-                    if (lastMessage && lastMessage.mes) {
-                        $tempContainer.html(lastMessage.mes);
-
-                        // 查找今日头条内容
-                        const $newsDiv = $tempContainer.find('.today_news');
-                        if ($newsDiv.length > 0) {
-                            const newsContent = $newsDiv.html();
-                            if (newsContent) {
-                                // 处理markdown格式
-                                let formattedContent = processNewsContent(newsContent);
-                                $newsContent.html(formattedContent);
-
-                                // 显示更新提示
-                                const updateToast = $(`<div class="monitor-toast">内容已更新</div>`);
-                                $('.phone-content').append(updateToast);
-                                setTimeout(() => {
-                                    updateToast.fadeOut(300, function() {
-                                        $(this).remove();
-                                    });
-                                }, 2000);
-                                newsContentFound = true;
-                                return;
-                            }
-                        }
-                    }
-                }
+              // 显示更新提示
+              const updateToast = $(`<div class="monitor-toast">内容已从页面更新</div>`);
+              $('.phone-content').append(updateToast);
+              setTimeout(() => {
+                updateToast.fadeOut(300, function () {
+                  $(this).remove();
+                });
+              }, 2000);
+              newsContentFound = true;
+              return;
             }
+          }
         } catch (error) {
-            console.error('从SillyTavern获取今日头条内容时发生错误:', error);
+          console.error('从页面获取今日头条内容时发生错误:', error);
         }
+      }
 
-        // 如果从SillyTavern没有获取到数据，尝试从页面上获取
-        if (!newsContentFound) {
-            try {
-                console.log('尝试从页面上获取今日头条内容...');
-                // 查找页面上的今日头条内容
-                const $pageNewsDiv = $('.today_news');
-                if ($pageNewsDiv.length > 0) {
-                    const newsContent = $pageNewsDiv.html();
-                    if (newsContent) {
-                        // 处理markdown格式
-                        let formattedContent = processNewsContent(newsContent);
-                        $newsContent.html(formattedContent);
-
-                        // 显示更新提示
-                        const updateToast = $(`<div class="monitor-toast">内容已从页面更新</div>`);
-                        $('.phone-content').append(updateToast);
-                        setTimeout(() => {
-                            updateToast.fadeOut(300, function() {
-                                $(this).remove();
-                            });
-                        }, 2000);
-                        newsContentFound = true;
-                        return;
-                    }
-                }
-            } catch (error) {
-                console.error('从页面获取今日头条内容时发生错误:', error);
-            }
-        }
-
-        // 如果没有找到内容，显示默认消息
-        if (!newsContentFound) {
-            $newsContent.html('<div class="no-content">暂无内容</div>');
-        }
+      // 如果没有找到内容，显示默认消息
+      if (!newsContentFound) {
+        $newsContent.html('<div class="no-content">暂无内容</div>');
+      }
     }, 100); // 100ms防抖
-}
+  }
 
-/**
- * 处理新闻内容的markdown格式
- * @param {string} content - 原始内容
- * @returns {string} - 处理后的HTML内容
- */
-function processNewsContent(content) {
+  /**
+   * 处理新闻内容的markdown格式
+   * @param {string} content - 原始内容
+   * @returns {string} - 处理后的HTML内容
+   */
+  function processNewsContent(content) {
     // 分行处理
     let lines = content.split('\n');
     let formattedLines = lines.map(line => {
-        line = line.trim();
-        // 处理标题：支持带#和不带#的格式
-        if (line.match(/^#{1,2}\s*[^#]+#*$/)) {
-            // 判断是一级还是二级标题
-            const level = line.startsWith('##') ? 2 : 1;
-            // 去除前后的#和空白
-            const title = line.replace(/^#+\s*|\s*#*$/g, '');
-            return `<h${level}>${title}</h${level}>`;
-        } 
-        // 处理图片描述：![描述内容]
-        else if (line.match(/^!\[.*?\]$/)) {
-            const description = line.match(/^!\[(.*?)\]$/)[1];
-            return `<div class="image-placeholder">
+      line = line.trim();
+      // 处理标题：支持带#和不带#的格式
+      if (line.match(/^#{1,2}\s*[^#]+#*$/)) {
+        // 判断是一级还是二级标题
+        const level = line.startsWith('##') ? 2 : 1;
+        // 去除前后的#和空白
+        const title = line.replace(/^#+\s*|\s*#*$/g, '');
+        return `<h${level}>${title}</h${level}>`;
+      }
+      // 处理图片描述：![描述内容]
+      else if (line.match(/^!\[.*?\]$/)) {
+        const description = line.match(/^!\[(.*?)\]$/)[1];
+        return `<div class="image-placeholder">
                       <div class="image-description">${description}</div>
                    </div>`;
-        } 
-        else if (line) {
-            return `<p>${line}</p>`;
-        }
-        return '';
+      }
+      else if (line) {
+        return `<p>${line}</p>`;
+      }
+      return '';
     });
 
     return formattedLines.join('');
-}
+  }
 
-function updateMonitorCardsWithData(data) {
+  function updateMonitorCardsWithData(data) {
     const $monitorCards = $('.monitor-cards');
     const fragment = document.createDocumentFragment();
     const batchSize = 5;
